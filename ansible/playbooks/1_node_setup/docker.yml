@@ -1,0 +1,14 @@
+---
+#ansible-playbook playbooks/1_node_setup/docker.yml -i inventories/sandbox_nodes.ini
+#ansible-playbook playbooks/1_node_setup/docker.yml --ask-become-pass -i inventories/example_nodes.ini
+
+- name: Setup_docker
+  tags: Setup_docker
+  hosts: docker_nodes
+  vars:
+    variables_file: "{{lookup('first_found', 'custom/docker/' + inventory + '_variables.yml', errors='ignore')}}"
+  tasks:
+  - when: variables_file is file
+    include_vars: "{{ variables_file }}"
+  - import_role:
+      name: ../../roles/node_setup/docker

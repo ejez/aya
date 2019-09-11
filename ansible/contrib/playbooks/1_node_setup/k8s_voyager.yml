@@ -1,0 +1,12 @@
+---
+#ansible-playbook contrib/playbooks/1_node_setup/k8s_voyager.yml -i inventories/sandbox_nodes.ini
+#ansible-playbook contrib/playbooks/1_node_setup/k8s_voyager.yml -i inventories/example_nodes.ini
+
+- name: k8s_voyager
+  tags: k8s_voyager
+  hosts: k8s_master_nodes[0]
+  vars:
+    voyager_operator_config_template: "{{ lookup('first_found', 'custom/k8s/k8s_voyager/' + inventory + '_voyager_operator_config.yaml.j2', errors='ignore') }}"
+  tasks:
+  - import_role:
+      name: ../../roles/node_setup/k8s/k8s_voyager

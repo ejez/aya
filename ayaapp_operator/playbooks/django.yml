@@ -1,0 +1,16 @@
+- name: Setup_project_database_and_project_setup_daemonset
+  tags: Setup_project_database_and_project_setup_daemonset
+  hosts: localhost
+  gather_facts: false
+  tasks:
+  - import_role:
+      name: "helpers/database"
+  - import_role:
+      name: "helpers/project_setup_daemonset"
+
+- name: Setup_django_project
+  tags: Setup_django_project
+  hosts: all
+  tasks:
+  - import_role:
+      name: "django"

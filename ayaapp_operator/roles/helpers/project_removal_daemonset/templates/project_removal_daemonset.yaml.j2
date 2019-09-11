@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: aya-project-removal-python-{{ project_python_version | regex_replace('\.', '-') }}
+  namespace: default
+  labels:
+    app: aya-project-removal-python-{{ project_python_version | regex_replace('\.', '-') }}
+spec:
+  selector:
+    matchLabels:
+      app: aya-project-removal-python-{{ project_python_version | regex_replace('\.', '-') }}
+  template:
+    metadata:
+      labels:
+        app: aya-project-removal-python-{{ project_python_version | regex_replace('\.', '-') }}
+    spec:
+      nodeSelector:
+        aya/uwsgi_nginx_pods_node: "true"
+      containers:
+      - name: python
+        image: "python:{{ project_python_version }}"
+        command: ["/bin/bash", "-c", "sleep infinity"]
+        volumeMounts:
+        - name: apps
+          mountPath: {{ apps_dir }}
+        - name: pyvenvs
+          mountPath: {{ pyvenvs_dir }}
+      volumes:
+      - name: apps
+        persistentVolumeClaim:
+          claimName: aya-apps
+      - name: pyvenvs
+        hostPath:
+          path: {{ pyvenvs_dir }}
+          type: Directory

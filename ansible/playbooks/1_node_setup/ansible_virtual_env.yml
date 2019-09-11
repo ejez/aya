@@ -1,0 +1,13 @@
+---
+#ansible-playbook playbooks/1_node_setup/ansible_virtual_env.yml -i inventories/sandbox_nodes.ini
+#ansible-playbook playbooks/1_node_setup/ansible_virtual_env.yml --ask-become-pass -i inventories/example_nodes.ini
+
+- name: Setup_a_python_virtual_env_for_ansible
+  tags: Setup_a_python_virtual_env_for_ansible
+  hosts: all
+  vars:
+    # Before a python virtualenv is installed for ansible we use the global python
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+  - import_role:
+      name: ../../roles/node_setup/ansible_virtual_env

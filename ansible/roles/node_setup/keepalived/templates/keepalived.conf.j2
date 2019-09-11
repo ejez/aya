@@ -1,0 +1,14 @@
+vrrp_instance VI_KEEPALIVED {
+    state {{ 'MASTER' if inventory_hostname == groups['keepalived_nodes'][0] else 'BACKUP' }}
+    interface {{ cluster_network_interface }}
+    virtual_router_id 127
+    priority {{ 200 if inventory_hostname == groups['keepalived_nodes'][0] else 150 - groups['keepalived_nodes']['index'](inventory_hostname) }}
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass {{ keepalived_password.stdout }}
+    }
+    virtual_ipaddress {
+        {{ keepalived_virtual_ip }}
+    }
+}

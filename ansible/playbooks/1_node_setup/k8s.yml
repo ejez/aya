@@ -1,0 +1,94 @@
+---
+#ansible-playbook playbooks/1_node_setup/k8s.yml -i inventories/sandbox_nodes.ini
+#ansible-playbook playbooks/1_node_setup/k8s.yml --ask-become-pass -i inventories/example_nodes.ini
+
+- name: k8s_main_components_install
+  tags: k8s_main_components_install
+  hosts: k8s_cluster_nodes, !microk8s_nodes
+  vars:
+    variables_file: "{{ lookup('first_found', 'custom/k8s/k8s_main_components_install/' + inventory + '_variables.yml', errors='ignore') }}"
+  tasks:
+  - when: variables_file is file
+    include_vars: "{{ variables_file }}"
+  - import_role:
+      name: ../../roles/node_setup/k8s/k8s_main_components_install
+
+- name: create_k8s_cluster
+  tags: create_k8s_cluster
+  hosts: k8s_cluster_nodes, k8s_apiservers_loadbalancer_nodes, !microk8s_nodes
+  vars_files: custom/k8s/{{ inventory }}_variables.yml
+  tasks:
+  - when:
+    - "'k8s_master_nodes' in groups.keys()"
+    - groups['k8s_master_nodes']|length|int == 1
+    block:
+    - import_role:
+        name: ../../roles/node_setup/k8s/k8s_single_master_cluster
+    - import_role:
+        name: ../../roles/node_setup/k8s/k8s_network_plugin
+
+  - when:
+    - "'k8s_master_nodes' in groups.keys()"
+    - groups['k8s_master_nodes']|length|int >= 2
+    import_role:
+      name: ../../roles/node_setup/k8s/k8s_high_availablity_cluster
+
+- name: microk8s_setup
+  tags: microk8s_setup
+  hosts: microk8s_nodes
+  vars:
+    variables_file: "{{ lookup('first_found', 'custom/k8s/microk8s/' + inventory + '_variables.yml', errors='ignore') }}"
+  tasks:
+  - when: variables_file is file
+    include_vars: "{{ variables_file }}"
+  - import_role:
+      name: ../../roles/node_setup/k8s/microk8s
+
+- name: setup_k8s_worker_nodes
+  tags: setup_k8s_worker_nodes
+  hosts: k8s_cluster_nodes
+  tasks:
+  - import_role:
+      name: ../../roles/node_setup/k8s/k8s_worker_nodes_setup
+
+- name: k8s_helm
+  tags: k8s_helm
+  hosts: k8s_master_nodes[0]
+  tasks:
+  - import_role:
+      name: ../../roles/node_setup/k8s/k8s_helm
+
+- name: k8s_gluster
+  tags: k8s_gluster
+  hosts: gluster_nodes, k8s_master_nodes[0]
+  vars:
+    variables_file: "{{ lookup('first_found', 'custom/k8s/k8s_gluster/' + inventory + '_variables.yml', errors='ignore') }}"
+    topology_template: "{{ lookup('first_found', 'custom/k8s/k8s_gluster/' + inventory + '_topology.json.j2', errors='ignore') }}"
+  tasks:
+  - when: variables_file is file
+    include_vars: "{{ variables_file }}"
+  - import_role:
+      name: ../../roles/node_setup/k8s/k8s_gluster
+
+- name: k8s_storage
+  tags: k8s_storage
+  hosts: k8s_master_nodes[0]
+  vars:
+    variables_file: "{{ lookup('first_found', 'custom/k8s/' + inventory + '_variables.yml', errors='ignore') }}"
+  tasks:
+  - when: variables_file is file
+    include_vars: "{{ variables_file }}"
+  - import_role:
+      name: ../../roles/node_setup/k8s/k8s_storage
+
+- name: k8s_haproxy_ingress_controller
+  tags: k8s_haproxy_ingress_controller
+  hosts: k8s_master_nodes[0]
+  vars:
+    variables_file: "{{ lookup('first_found', 'custom/k8s/k8s_haproxy_ingress_controller/' + inventory + '_variables.yml', errors='ignore') }}"
+    haproxy_ingress_controller_configmap_template: "{{ lookup('first_found', 'custom/k8s/k8s_haproxy_ingress_controller/' + inventory + '_haproxy_ingress_controller_configmap.yaml.j2', errors='ignore') }}"
+  tasks:
+  - when: variables_file is file
+    include_vars: "{{ variables_file }}"
+  - import_role:
+      name: ../../roles/node_setup/k8s/k8s_haproxy_ingress_controller

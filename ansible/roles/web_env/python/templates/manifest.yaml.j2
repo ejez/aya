@@ -1,0 +1,145 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aya-python
+  labels:
+    app: aya-python
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: aya-python
+---
+{% if 'haproxy_ingress_controller_pods_nodes' in groups.keys() and groups['haproxy_ingress_controller_pods_nodes'] != [] %}
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: aya-python
+spec:
+  # Because k8s does not allow creating empty ingresses, we provide this dummy
+  # rule. Additional rules will be added when new projects are created.
+  # issue: https://github.com/kubernetes/kubernetes/issues/82203
+  tls:
+  - hosts:
+    - dummy-tls-host
+    secretName: dummy-tls-secret
+  rules:
+  - host: dummy-host
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: ingress-default-backend
+          servicePort: 8080
+{% endif %}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aya-python-nginx
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aya-python-uwsgi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aya-python-uwsgi-params
+data:
+  uwsgi_params: |
+    {{ lookup('file', 'files/uwsgi_params') | indent(width=4) }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aya-python-project-db-user-passwords
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aya-python-project-secret-keys
+type: Opaque
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aya-python
+  labels:
+    app: aya-python
+spec:
+  selector:
+    matchLabels:
+      app: aya-python
+  replicas: {{ ( groups['uwsgi_nginx_pods_nodes'] | length ) * 1 }}
+  template:
+    metadata:
+      labels:
+        app: aya-python
+    spec:
+      nodeSelector:
+        aya/uwsgi_nginx_pods_node: "true"
+      containers:
+      - name: nginx
+        image: {{ nginx_image }}
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: aya-python-nginx
+          mountPath: /etc/nginx/conf.d
+        - name: aya-python-uwsgi-params
+          mountPath: /etc/nginx/uwsgi-params
+        - name: apps
+          mountPath: {{ apps_dir }}
+        - name: sockets
+          mountPath: {{ sockets_dir }}
+      - name: uwsgi
+        image: {{ uwsgi_image }}
+        command: ["bash"]
+        args: ["-c", "source {{ pyvenvs_dir }}/uwsgi/bin/activate && uwsgi --emperor /etc/uwsgi/vassals"]
+        securityContext:
+          runAsUser: {{ ansible_user_uid }}
+          runAsGroup: 101
+        volumeMounts:
+        - name: aya-python-uwsgi
+          mountPath: /etc/uwsgi/vassals
+        - name: aya-python-project-db-user-passwords
+          mountPath: "/etc/aya/secrets/python/project_db_user_passwords"
+          readOnly: true
+        - name: aya-python-project-secret-keys
+          mountPath: "/etc/aya/secrets/python/project_secret_keys"
+          readOnly: true
+        - name: apps
+          mountPath: {{ apps_dir }}
+        - name: sockets
+          mountPath: {{ sockets_dir }}
+        - name: pyvenvs
+          mountPath: {{ pyvenvs_dir }}
+      volumes:
+      - name: aya-python-uwsgi
+        configMap:
+          name: aya-python-uwsgi
+      - name: aya-python-nginx
+        configMap:
+          name: aya-python-nginx
+      - name: aya-python-uwsgi-params
+        configMap:
+          name: aya-python-uwsgi-params
+      - name: aya-python-project-db-user-passwords
+        secret:
+          secretName: aya-python-project-db-user-passwords
+      - name: aya-python-project-secret-keys
+        secret:
+          secretName: aya-python-project-secret-keys
+      - name: apps
+        persistentVolumeClaim:
+          claimName: aya-apps
+      - name: pyvenvs
+        hostPath:
+          path: {{ pyvenvs_dir }}
+          type: Directory
+      - name: sockets
+        emptyDir: {}

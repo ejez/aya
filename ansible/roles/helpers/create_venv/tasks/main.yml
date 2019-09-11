@@ -1,0 +1,17 @@
+---
+- name: Create_virtual_env | {{ role_name | basename }}
+  tags: Create_virtual_env
+  docker_container:
+    name: create_venv
+    detach: false
+    cleanup: true
+    image: "python:{{ venv_python_version }}"
+    pull: true
+    user: "{{ ansible_user_uid }}:{{ ansible_user_gid }}"
+    volumes:
+      - "{{ pyvenvs_dir }}:{{ pyvenvs_dir }}"
+    command: bash -c "
+      python -m venv --copies {{ pyvenvs_dir }}/{{ venv_name }} &&
+      source {{ pyvenvs_dir }}/{{ venv_name }}/bin/activate &&
+      pip install --cache-dir {{ pyvenvs_dir }}/pipcache_$UID --upgrade pip &&
+      pip install --cache-dir {{ pyvenvs_dir }}/pipcache_$UID {{ venv_packages }}"

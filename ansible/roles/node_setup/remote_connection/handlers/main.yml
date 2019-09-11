@@ -1,0 +1,7 @@
+---
+- name: Restart_ssh | remote_connection
+  tags: Restart_ssh
+  become: true
+  systemd:
+    name: ssh
+    state: restarted

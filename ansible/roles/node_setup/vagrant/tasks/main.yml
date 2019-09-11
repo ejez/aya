@@ -1,0 +1,39 @@
+---
+- when: "'vagrant_host_nodes' in group_names"
+  block:
+  - name: Check_if_vagrant_is_installed | {{ role_name | basename }}
+    tags: Check_if_vagrant_is_installed
+    command: vagrant --version
+    register: vagrant_installed_check
+    ignore_errors: yes
+    changed_when: false
+
+  - when: vagrant_installed_check is failed
+    become: true
+    block:
+    # https://www.virtualbox.org/wiki/Linux_Downloads
+    - name: Add_oracle_vbox_key | {{ role_name | basename }}
+      tags: Add_oracle_vbox_key
+      apt_key:
+        url: "{{ virtualbox_apt_key }}"
+        state: present
+
+    - name: Add_virtualbox_repo | {{ role_name | basename }}
+      tags: Add_virtualbox_repo
+      apt_repository:
+        repo: "{{ virtualbox_repo }}"
+        state: present
+
+    - name: Install_virtualbox_from_repo | {{ role_name | basename }}
+      tags: Install_virtualbox_from_repo
+      apt:
+        name: "virtualbox-{{ virtualbox_version }}"
+        update_cache: true
+        state: present
+
+    # https://www.vagrantup.com/intro/getting-started/install.html
+    - name: Install_vagrant_from_deb | {{ role_name | basename }}
+      tags: Install_vagrant_from_deb
+      apt:
+        deb: "{{ vagrant_package_url }}"
+        update_cache: false

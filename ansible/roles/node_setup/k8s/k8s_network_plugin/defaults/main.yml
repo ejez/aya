@@ -1,0 +1,3 @@
+---
+# https://docs.projectcalico.org/v3.8/getting-started/kubernetes/installation/calico#installing-with-the-kubernetes-api-datastore50-nodes-or-less
+calico_yaml_file_url: "https://docs.projectcalico.org/v3.8/manifests/calico.yaml"

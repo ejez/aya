@@ -1,0 +1,3 @@
+---
+tls_certificates_renewal_schedule: "44 2 3 * *"
+kubectl_version: "1.15.3"

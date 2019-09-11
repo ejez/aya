@@ -1,0 +1,39 @@
+---
+- name: Install_aptitude | {{ role_name | basename }}
+  tags: Install_aptitude
+  become: true
+  apt:
+    name: aptitude
+    update_cache: yes
+    force_apt_get: true
+
+- name: Update_operating_system_packages | {{ role_name | basename }}
+  tags: Update_operating_system_packages
+  when: update_operating_system_packages == true
+  become: true
+  apt:
+    upgrade: dist
+    update_cache: yes
+    autoremove: yes
+
+- name: Update_hosts_file_from_provided_file | {{ role_name | basename }}
+  tags: Update_hosts_file_from_provided_file
+  when: host_entries_file is file
+  become: true
+  blockinfile:
+    path: /etc/hosts
+    block: |
+      {{ lookup('file', '{{ host_entries_file }}', errors='ignore') }}
+    marker: "# {mark} HOSTS MANAGED BY ANSIBLE ROLE {{ role_name | basename }}"
+
+- name: Create_aya_directory | {{ role_name | basename }}
+  tags: Create_aya_directory
+  file:
+    path: "{{ ansible_user_dir }}/.aya"
+    state: directory
+
+- name: Enable_command_history_using_up_and_down_keys | {{ role_name | basename }}
+  tags: Enable_command_history_using_up_and_down_keys
+  copy:
+    dest: "{{ ansible_user_dir }}/.inputrc"
+    content: "## arrow up\n\"\\e[A\":history-search-backward\n## arrow down\n\"\\e[B\":history-search-forward\n"

@@ -1,0 +1,136 @@
+---
+# https://github.com/gluster/gluster-kubernetes/blob/master/docs/setup-guide.md
+- name: Check_if_glusterfs_client_is_installed | {{ role_name | basename }}
+  tags: Check_if_glusterfs_client_is_installed
+  when: "'gluster_nodes' in group_names"
+  command: glusterfs --version
+  register: glusterfs_client_installed_check
+  ignore_errors: yes
+  changed_when: false
+
+- when:
+  - "'gluster_nodes' in group_names"
+  - glusterfs_client_installed_check is failed
+  become: true
+  block:
+  - name: Load_needed_kernel_modules | {{ role_name | basename }}
+    tags: Load_needed_kernel_modules
+    modprobe:
+      name: "{{ item }}"
+    loop:
+      - dm_snapshot
+      - dm_mirror
+      - dm_thin_pool
+
+  - name: Add_glusterfs_repo | {{ role_name | basename }}
+    tags: Add_glusterfs_repo
+    apt_repository:
+      repo: "ppa:gluster/glusterfs-{{ glusterfs_version }}"
+      state: present
+
+  - name: Install_glusterfs_client_from_repo | {{ role_name | basename }}
+    tags: Install_glusterfs_client_from_repo
+    apt:
+      name: "glusterfs-client"
+      state: present
+
+- when:
+    - "'gluster_nodes' in groups.keys()"
+    - "groups['gluster_nodes'] != []"
+    - "'k8s_master_nodes' in group_names"
+    - inventory_hostname == groups['k8s_master_nodes'][0]
+  block:
+  - name: Create_gluster_kubernetes_namespace | {{ role_name | basename }}
+    tags: Create_gluster_kubernetes_namespace
+    command: kubectl create namespace gluster-kubernetes
+    ignore_errors: true
+
+  - name: Create_k8s_gluster_directory | {{ role_name | basename }}
+    tags: Create_k8s_gluster_directory
+    file:
+      path: "{{ ansible_user_dir }}/.aya/k8s/gluster"
+      state: directory
+
+  - name: Clone_gluster_kubernetes_repo | {{ role_name | basename }}
+    tags: Clone_gluster_kubernetes_repo
+    git:
+      repo: https://github.com/gluster/gluster-kubernetes.git
+      dest: "{{ ansible_user_dir }}/.aya/k8s/gluster/gluster-kubernetes"
+      version: "{{ gluster_kubernetes_version }}"
+      force: true # due bug in gk-deploy (invalid --show-all flag)
+
+  - name: Remove_invalid_kubectl_command_option_show_all | {{ role_name | basename }}
+    tags: Remove_invalid_kubectl_command_option_show_all
+    replace:
+      path: "{{ ansible_user_dir }}/.aya/k8s/gluster/gluster-kubernetes/deploy/gk-deploy"
+      regexp: 'get pod --no-headers --show-all'
+      replace: 'get pod --no-headers'
+
+  - name: Create_topoloy_file | {{ role_name | basename }}
+    tags: Create_topoloy_file
+    template:
+      src: "{{ topology_template }}"
+      dest: "{{ ansible_user_dir }}/.aya/k8s/gluster/topology.json"
+
+  - name: Generate_heketi_user_key | {{ role_name | basename }}
+    tags: Generate_heketi_user_key
+    shell: openssl rand -hex $((20 + RANDOM % 10))
+    register: heketi_user_key
+
+  - name: Generate_heketi_admin_key | {{ role_name | basename }}
+    tags: Generate_heketi_admin_key
+    shell: openssl rand -hex $((20 + RANDOM % 10))
+    register: heketi_admin_key
+
+  - name: Deploy_gluster_kubernetes | {{ role_name | basename }}
+    tags: Deploy_gluster_kubernetes
+    command: "
+      {{ ansible_user_dir }}/.aya/k8s/gluster/gluster-kubernetes/deploy/gk-deploy
+        --deploy-gluster --yes --namespace gluster-kubernetes
+        --admin-key {{ heketi_admin_key.stdout }} --user-key {{ heketi_user_key.stdout }}
+        --no-object
+        {{ ansible_user_dir }}/.aya/k8s/gluster/topology.json"
+    register: gk_deploy_output
+
+  - name: Get_heketi_service_url | {{ role_name | basename }}
+    tags: Get_heketi_service_url
+    command: kubectl get svc -n gluster-kubernetes heketi --no-headers -o custom-columns=":spec.clusterIP"
+    register: heketi_service_url
+
+  - name: Create_gluster_storage_class_file | {{ role_name | basename }}
+    tags: Create_gluster_storage_class_file
+    copy:
+      content: |
+        apiVersion: storage.k8s.io/v1
+        kind: StorageClass
+        metadata:
+          name: glusterfs-storage
+        provisioner: kubernetes.io/glusterfs
+        parameters:
+          resturl: "http://{{ heketi_service_url.stdout }}:8080"
+          restuser: "admin"
+          restuserkey: "{{ heketi_admin_key.stdout }}"
+      dest: "{{ ansible_user_dir }}/.aya/k8s/gluster/storageclass.yaml"
+
+  - name: Create_gluster_storageclass | {{ role_name | basename }}
+    tags: Create_gluster_storageclass
+    command: kubectl apply -f {{ ansible_user_dir }}/.aya/k8s/gluster/storageclass.yaml
+
+- name: Display_deploy_script_output | {{ role_name | basename }}
+  tags: Display_deploy_script_output
+  when:
+    - "'glusterfs' in groups.keys()"
+    - "groups['gluster_nodes'] != []"
+    - "'k8s_master_nodes' in groups.keys()"
+    - "groups['k8s_master_nodes'] != []"
+  pause:
+    seconds: 1
+    prompt: |
+
+      //////////////////////////////////////////////////////////////////////////////////////////////////
+
+        # This was the output from the "gk-deploy" script:
+
+        {{ hostvars[groups['k8s_master_nodes'][0]]['gk_deploy_output']['stdout'] }}
+
+      //////////////////////////////////////////////////////////////////////////////////////////////////

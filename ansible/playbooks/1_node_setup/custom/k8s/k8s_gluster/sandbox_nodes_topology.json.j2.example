@@ -1,0 +1,62 @@
+{# See https://github.com/gluster/gluster-kubernetes/blob/master/docs/setup-guide.md#infrastructure-requirements #}
+{# There must be at least 3 nodes #}
+{# Each node must have at least one raw block device attached #}
+{# If you don't have dedicated storage devices, you can create loopback devices using commands: #}
+{# sudo dd if=/dev/zero of=/virtualdiskfile1 bs=1M count=10240 # creates 10Gb file #}
+{# sudo losetup --show --nooverlap /dev/loop200 /virtualdiskfile1 # mounts the created file in loopback device /dev/loop200 #}
+{
+  "clusters": [
+    {
+      "nodes": [
+        {
+          "node": {
+            "hostnames": {
+              "manage": [
+                "sandbox-1"
+              ],
+              "storage": [
+                "192.168.33.11"
+              ]
+            },
+            "zone": 1
+          },
+          "devices": [
+            "/dev/loop200"
+          ]
+        },
+        {
+          "node": {
+            "hostnames": {
+              "manage": [
+                "sandbox-2"
+              ],
+              "storage": [
+                "192.168.33.12"
+              ]
+            },
+            "zone": 1
+          },
+          "devices": [
+            "/dev/loop200"
+          ]
+        },
+        {
+          "node": {
+            "hostnames": {
+              "manage": [
+                "sandbox-3"
+              ],
+              "storage": [
+                "192.168.33.13"
+              ]
+            },
+            "zone": 1
+          },
+          "devices": [
+            "/dev/loop200"
+          ]
+        }
+      ]
+    }
+  ]
+}

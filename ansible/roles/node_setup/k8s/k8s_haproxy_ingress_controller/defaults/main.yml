@@ -1,0 +1,7 @@
+---
+
+# https://github.com/haproxytech/kubernetes-ingress/tags
+haproxy_ingress_controller_version: "1.2.2"
+
+# https://hub.docker.com/r/haproxytech/kubernetes-ingress/tags?page=1&ordering=last_updated
+haproxy_ingress_controller_docker_image_version: "{{ haproxy_ingress_controller_version }}"

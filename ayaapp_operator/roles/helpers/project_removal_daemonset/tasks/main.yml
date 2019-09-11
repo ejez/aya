@@ -1,0 +1,25 @@
+---
+- name: Create_project_removal_daemonset | {{ role_name | basename }}
+  tags: Create_project_removal_daemonset
+  k8s:
+    definition: "{{ lookup('template', 'templates/project_removal_daemonset.yaml.j2') }}"
+
+- name: Wait_for_project_removal_daemonset_to_be_ready | {{ role_name | basename }}
+  tags: Wait_for_project_removal_daemonset_to_be_ready
+  shell: sleep 5 && kubectl rollout status daemonset/aya-project-removal-python-{{ project_python_version | regex_replace('\.', '-') }}
+  changed_when: false
+
+- name: Get_project_removal_pods | {{ role_name | basename }}
+  tags: Get_project_removal_pods
+  shell: kubectl get pods -l app=aya-project-removal-python-{{ project_python_version | regex_replace('\.', '-') }} --no-headers -o custom-columns=":metadata.name"
+  register: project_removal_pods
+  changed_when: false
+
+- name: Add_project_removal_pods_to_ansible_inventory | {{ role_name | basename }}
+  tags: Add_project_removal_pods_to_ansible_inventory
+  add_host:
+    name: "{{ item }}"
+    groups: aya_project_removal_pods
+    ansible_connection: kubectl
+  changed_when: false
+  loop: "{{ project_removal_pods.stdout_lines }}"

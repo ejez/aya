@@ -1,0 +1,42 @@
+---
+- name: Create_uwsgi_virtual_env | {{ role_name | basename }}
+  tags: Create_uwsgi_virtual_env
+  when: "'uwsgi_nginx_pods_nodes' in group_names"
+  import_role:
+      name: "{{ role_path }}/../../helpers/create_venv"
+  vars:
+    venv_name: "uwsgi"
+    venv_packages: "uwsgi"
+    venv_python_version: "{{ uwsgi_python_version }}"
+
+- when:
+    - "'uwsgi_nginx_pods_nodes' in groups.keys()"
+    - "groups['uwsgi_nginx_pods_nodes'] != []"
+    - "'k8s_master_nodes' in group_names"
+    - inventory_hostname == groups['k8s_master_nodes'][0]
+  block:
+  - name: Create_python_directory | {{ role_name | basename }}
+    tags: Create_python_directory
+    file:
+      path: "{{ ansible_user_dir }}/.aya/python"
+      state: directory
+
+  - name: Create_apps_pvc_k8s_file | {{ role_name | basename }}
+    tags: Create_apps_pvc_k8s_file
+    template:
+      src: templates/apps_pvc.yaml.j2
+      dest: "{{ ansible_user_dir }}/.aya/python/apps_pvc.yaml"
+
+  - name: Deploy_apps_pvc | {{ role_name | basename }}
+    tags: Deploy_apps_pvc
+    command: kubectl apply -f {{ ansible_user_dir }}/.aya/python/apps_pvc.yaml
+
+  - name: Create_python_k8s_manifest_file | {{ role_name | basename }}
+    tags: Create_python_k8s_manifest_file
+    template:
+      src: templates/manifest.yaml.j2
+      dest: "{{ ansible_user_dir }}/.aya/python/manifest.yaml"
+
+  - name: Deploy_python_manifest | {{ role_name | basename }}
+    tags: Deploy_python_manifest
+    command: kubectl apply -f {{ ansible_user_dir }}/.aya/python/manifest.yaml

@@ -1,0 +1,17 @@
+---
+- when:
+  - "'local_nodes' in group_names"
+  - inventory_hostname == groups['local_nodes'][0]
+  block:
+  - name: Generate_ssh_key_pair_if_not_existing | {{ role_name | basename }}
+    tags: Generate_ssh_key_pair_if_not_existing
+    user:
+      name: "{{ ansible_user_id }}"
+      generate_ssh_key: true
+      ssh_key_type: "ed25519"
+
+  - name: Add_generated_private_key_to_ssh_agent | {{ role_name | basename }}
+    tags: Add_generated_private_key_to_ssh_agent
+    command: ssh-add
+    changed_when: false
+    ignore_errors: yes

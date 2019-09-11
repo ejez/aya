@@ -1,0 +1,5 @@
+---
+# OPTIONAL
+
+# https://github.com/kubernetes/kubernetes/releases
+k8s_version: "1.15"

@@ -1,0 +1,11 @@
+configKubernetes:
+  # Restrict postgres pods to the nodes having the provided labels
+  node_readiness_label: "aya/postgres_pods_node:true"
+  # Provide env variables to postgres pods
+  pod_environment_configmap: postgres-pod-config
+configKubernetesCRD:
+  # Don't run multiple postgres pods in the same node
+  enable_pod_antiaffinity: "true"
+configLoadBalancer:
+  # Postgres master pod will have a ClusterIP type service instead of LoadBalancer type
+  enable_master_load_balancer: "false"

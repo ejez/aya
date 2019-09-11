@@ -1,0 +1,5 @@
+---
+# https://hub.docker.com/r/ejez/ayaapp-operator/tags?page=1&ordering=last_updated
+ayaapp_operator_docker_image_version: "master"
+
+ayaapp_operator_replicas: 0

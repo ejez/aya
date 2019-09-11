@@ -1,0 +1,12 @@
+# https://appscode.com/products/voyager/10.0.0/setup/install/#using-helm
+# https://github.com/appscode/voyager/tree/10.0.0/chart/voyager#configuration
+# https://github.com/appscode/voyager/blob/10.0.0/chart/voyager/values.yaml
+ingressClass: voyager
+cloudProvider: baremetal
+nodeSelector:
+  aya/voyager_pods_node: "true"
+enableAnalytics: false
+
+apiserver:
+  # Due to bug: https://github.com/appscode/voyager/issues/1203
+  enableValidatingWebhook: false

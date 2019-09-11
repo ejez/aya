@@ -1,0 +1,50 @@
+---
+# https://helm.sh/docs/using_helm/#quickstart
+- when:
+  - "'k8s_master_nodes' in group_names"
+  - inventory_hostname == groups['k8s_master_nodes'][0]
+  block:
+  - name: Create_k8s_helm_directory | {{ role_name | basename }}
+    tags: Create_k8s_helm_directory
+    file:
+      path: "{{ ansible_user_dir }}/.aya/k8s/helm"
+      state: directory
+
+  - name: Create_helm_rbac_config_file | {{ role_name | basename }}
+    tags: Create_helm_rbac_config_file
+    template:
+      src: "templates/helm_rbac_config.yaml.j2"
+      dest: "{{ ansible_user_dir }}/.aya/k8s/helm/rbac_config.yaml"
+
+  - name: Apply_helm_rbac_config | {{ role_name | basename }}
+    tags: Apply_helm_rbac_config
+    command: kubectl apply -f {{ ansible_user_dir }}/.aya/k8s/helm/rbac_config.yaml
+
+  - name: Get_helm_install_script | {{ role_name | basename }}
+    tags: Get_helm_install_script
+    get_url:
+      url: "https://git.io/get_helm.sh"
+      dest: "{{ ansible_user_dir }}/.aya/k8s/helm/get_helm.sh"
+
+  - name: Install_helm | {{ role_name | basename }}
+    tags: Install_helm
+    become: true
+    command: bash {{ ansible_user_dir }}/.aya/k8s/helm/get_helm.sh
+
+  - name: Initialaze_helm | {{ role_name | basename }}
+    tags: Initialaze_helm
+    shell: sleep 10 && helm init --service-account tiller --history-max 200
+
+  - name: Wait_for_helm_tiller_to_be_ready | {{ role_name | basename }}
+    tags: Wait_for_helm_tiller_to_be_ready
+    shell: "
+      sleep 5;
+      kubectl --namespace kube-system rollout status deployment/tiller-deploy"
+
+  - name: Add_helm_incubator_repo | {{ role_name | basename }}
+    tags: Add_helm_incubator_repo
+    command: helm repo add incubator https://kubernetes-charts-incubator.storage.googleapis.com/
+
+  - name: Update_helm_repo | {{ role_name | basename }}
+    tags: Update_helm_repo
+    command: helm repo update

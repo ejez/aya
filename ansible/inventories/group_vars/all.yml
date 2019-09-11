@@ -1,0 +1,16 @@
+---
+# This file contains defaults to variables that are used in multiple roles or
+# playbooks, and are not specific to a set of nodes (inventory group).
+
+# web apps directory
+apps_dir: "/apps"
+
+# directory to hold python virtual environments
+pyvenvs_dir: "/opt/pyvenvs"
+
+# directory to hold needed unix sockets
+sockets_dir: "/opt/sockets"
+
+# gets inventory file name without extension
+# do not modify
+inventory: "{{ inventory_file | basename | splitext | first }}"

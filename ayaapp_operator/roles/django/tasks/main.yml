@@ -1,0 +1,62 @@
+---
+- import_role:
+    name: "{{ role_path }}/../helpers/project_pre_install"
+
+- when:
+  - hostvars['localhost'].project_is_installed_check.rc == 1
+  - inventory_hostname == groups['aya_project_setup_pods'][0]
+  - project_type == "django"
+  block:
+  - name: Create_project_virtual_environment | {{ role_name | basename }}
+    tags: Create_project_virtual_environment
+    command: bash -c "
+      mkdir -p {{ pyvenvs_dir }}/pipcache_$UID &&
+      python -m venv --copies {{ pyvenvs_dir }}/{{ deployment_env }}_{{ project }} &&
+      source {{ pyvenvs_dir }}/{{ deployment_env }}_{{ project }}/bin/activate &&
+      pip install --cache-dir {{ pyvenvs_dir }}/pipcache_$UID --upgrade pip &&
+      pip install --cache-dir {{ pyvenvs_dir }}/pipcache_$UID psycopg2-binary django=={{ django_version }} {{ extra_python_packages }} &&
+      pip freeze  --cache-dir {{ pyvenvs_dir }}/pipcache_$UID > {{ project_dir }}/venv_requirements.txt"
+    register: project_virtual_environment_command_output
+    changed_when: "'Successfully installed' in project_virtual_environment_command_output.stdout"
+
+  - name: Install_django_project | {{ role_name | basename }}
+    tags: Install_django_project
+    command: bash -c "
+      source {{ pyvenvs_dir }}/{{ deployment_env }}_{{ project }}/bin/activate &&
+      django-admin startproject {{ project }} {{ project_dir }}"
+
+  - name: Setup_django_project_settings | {{ role_name | basename }}
+    tags: Setup_django_project_settings
+    import_role:
+      name: "{{ role_path }}/../helpers/django_project_settings"
+
+- when:
+  - hostvars['localhost'].project_is_installed_check.rc == 1
+  - inventory_hostname == groups['aya_project_setup_pods'][0]
+  - project_type == "wagtail"
+  block:
+  - name: Create_project_virtual_environment | {{ role_name | basename }}
+    tags: Create_project_virtual_environment
+    command: bash -c "
+      mkdir -p {{ pyvenvs_dir }}/pipcache_$UID &&
+      python -m venv --copies {{ pyvenvs_dir }}/{{ deployment_env }}_{{ project }} &&
+      source {{ pyvenvs_dir }}/{{ deployment_env }}_{{ project }}/bin/activate &&
+      pip install --cache-dir {{ pyvenvs_dir }}/pipcache_$UID --upgrade pip &&
+      pip install --cache-dir {{ pyvenvs_dir }}/pipcache_$UID psycopg2-binary wagtail=={{ wagtail_version }} {{ extra_python_packages }} &&
+      pip freeze  --cache-dir {{ pyvenvs_dir }}/pipcache_$UID > {{ project_dir }}/venv_requirements.txt"
+    register: project_virtual_environment_command_output
+    changed_when: "'Successfully installed' in project_virtual_environment_command_output.stdout"
+
+  - name: Install_wagtail_project | {{ role_name | basename }}
+    tags: Install_wagtail_project
+    command: bash -c "
+      source {{ pyvenvs_dir }}/{{ deployment_env }}_{{ project }}/bin/activate &&
+      wagtail start {{ project }} {{ project_dir }}"
+
+  - name: Setup_wagtail_project_settings | {{ role_name | basename }}
+    tags: Setup_wagtail_project_settings
+    import_role:
+      name: "{{ role_path }}/../helpers/wagtail_project_settings"
+
+- import_role:
+    name: "{{ role_path }}/../helpers/project_post_install"

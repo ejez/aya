@@ -1,0 +1,30 @@
+---
+- when:
+    - "'ayaapp_operator_pods_nodes' in groups.keys()"
+    - "groups['ayaapp_operator_pods_nodes'] != []"
+    - "'k8s_master_nodes' in group_names"
+    - inventory_hostname == groups['k8s_master_nodes'][0]
+  block:
+  - name: Create_k8s_ayaapp_operator_directory | {{ role_name | basename }}
+    tags: Create_k8s_ayaapp_operator_directory
+    file:
+      path: "{{ ansible_user_dir }}/.aya/ayaapp_operator"
+      state: directory
+
+  - name: Apply_ayaapp_operator_rbac | {{ role_name | basename }}
+    tags: Apply_ayaapp_operator_rbac
+    command: kubectl apply -f {{ role_path }}/../../../../ayaapp_operator/deploy/rbac.yaml
+
+  - name: Apply_ayaapp_operator_crds | {{ role_name | basename }}
+    tags: Apply_ayaapp_operator_crds
+    command: kubectl apply -f {{ role_path }}/../../../../ayaapp_operator/deploy/crds.yaml
+
+  - name: Create_ayaapp_operator_manifest_file | {{ role_name | basename }}
+    tags: Create_ayaapp_operator_manifest_file
+    template:
+      src: templates/ayaapp_operator_manifest.yaml.j2
+      dest: "{{ ansible_user_dir }}/.aya/ayaapp_operator/ayaapp_operator_manifest.yaml"
+
+  - name: Deploy_ayaapp_operator | {{ role_name | basename }}
+    tags: Deploy_ayaapp_operator
+    command: kubectl apply -f {{ ansible_user_dir }}/.aya/ayaapp_operator/ayaapp_operator_manifest.yaml

@@ -1,0 +1,28 @@
+# General settings (common between all environments):
+from .base import *
+
+# {{ deployment_env }} environment specific settings:
+with open('/etc/aya/secrets/python/project_secret_keys/{{ deployment_env }}_{{ project }}') as f:
+  SECRET_KEY = f.read().strip()
+with open('/etc/aya/secrets/python/project_db_user_passwords/{{ deployment_env }}_{{ project }}') as f:
+  DATABASES['default']['PASSWORD'] = f.read().strip()
+
+DATABASES['default']['NAME'] = '{{ db }}'
+DATABASES['default']['USER'] = '{{ db_user }}'
+
+# https://docs.djangoproject.com/en/stable/ref/settings/
+DEBUG = False
+ALLOWED_HOSTS = ['{{ domain }}']
+
+MIDDLEWARE = ['django.middleware.security.SecurityMiddleware',] + MIDDLEWARE
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_SSL_REDIRECT = True
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
+# More settings overrides for {{ deployment_env }} environment:

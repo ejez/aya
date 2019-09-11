@@ -1,0 +1,5 @@
+---
+# OPTIONAL
+
+# https://github.com/haproxytech/kubernetes-ingress/tags
+haproxy_ingress_controller_version: "1.2.2"

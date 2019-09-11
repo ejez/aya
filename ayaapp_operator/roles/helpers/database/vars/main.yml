@@ -1,0 +1,3 @@
+---
+db: "{{ deployment_env }}_{{ project }}"
+db_user: "{{ db }}"

@@ -1,0 +1,14 @@
+vrrp_instance VI_K8S_APISERVERS_LOADBALANCERS {
+    state {{ 'MASTER' if inventory_hostname == groups['k8s_apiservers_loadbalancer_nodes'][0] else 'BACKUP' }}
+    interface {{ cluster_network_interface }}
+    virtual_router_id 51
+    priority {{ 200 if inventory_hostname == groups['k8s_apiservers_loadbalancer_nodes'][0] else 150 - groups['k8s_apiservers_loadbalancer_nodes']['index'](inventory_hostname) }}
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass {{ k8s_apiservers_loadbalancers_keepalived_password.stdout }}
+    }
+    virtual_ipaddress {
+        {{ k8s_apiservers_loadbalancers_virtual_ip }}
+    }
+}

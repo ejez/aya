@@ -1,0 +1,11 @@
+---
+#ansible-playbook playbooks/1_node_setup/node_setup.yml -i inventories/sandbox_nodes.ini
+#ansible-playbook playbooks/1_node_setup/node_setup.yml --ask-become-pass -i inventories/example_nodes.ini
+
+- import_playbook: ansible_virtual_env.yml
+- import_playbook: misc.yml
+- import_playbook: iptables.yml
+- import_playbook: docker.yml
+- import_playbook: vagrant.yml
+- import_playbook: keepalived.yml
+- import_playbook: k8s.yml

@@ -1,0 +1,12 @@
+---
+#ansible-playbook playbooks/1_node_setup/iptables.yml -i inventories/sandbox_nodes.ini
+#ansible-playbook playbooks/1_node_setup/iptables.yml --ask-become-pass -i inventories/example_nodes.ini
+
+- name: Setup_iptables
+  tags: Setup_iptables
+  hosts: all
+  vars:
+    iptables_conf_template: "{{ lookup('first_found', 'custom/iptables/' + inventory + '_iptables.conf.j2') }}"
+  tasks:
+  - import_role:
+      name: ../../roles/node_setup/iptables

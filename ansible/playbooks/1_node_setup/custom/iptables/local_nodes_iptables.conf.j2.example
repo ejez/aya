@@ -1,0 +1,35 @@
+*filter
+
+{# Set default policy for INPUT chain to DROP #}
+-P INPUT DROP
+
+{# Flush rules in INPUT chain #}
+-F INPUT
+
+{# Drop invalid connections #}
+-A INPUT -m conntrack --ctstate INVALID -j DROP
+
+{# Allow already established connections and related connections #}
+-A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+{# Comment the following to disable ssh to this node #}
+{# Warning: If you don't have physical access to this node you won't be able to access it #}
+-A INPUT -p tcp --dport 22 -j ACCEPT
+
+{# Allow icmp packets #}
+-4 -A INPUT -p icmp -j ACCEPT
+-6 -A INPUT -p icmpv6 -j ACCEPT
+
+{# Allow loopback interface connections #}
+-A INPUT -i lo -j ACCEPT
+
+{# Needed for microk8s, see https://microk8s.io/docs/ #}
+{# Note: When the machine is rebooted the policy for the FORWARD chain might #}
+{# revert back to DROP, if so run: "sudo iptables -P FORWARD ACCEPT" #}
+{# See https://github.com/ubuntu/microk8s/issues/266  #}
+{% if 'microk8s_nodes' in group_names %}
+-A INPUT -i cbr0 -j ACCEPT
+-P FORWARD ACCEPT
+{% endif %}
+
+COMMIT

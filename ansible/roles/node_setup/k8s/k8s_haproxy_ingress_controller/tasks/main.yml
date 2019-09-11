@@ -1,0 +1,46 @@
+---
+# https://www.haproxy.com/documentation/hapee/1-9r1/traffic-management/kubernetes-ingress-controller/
+- when:
+  - "'haproxy_ingress_controller_pods_nodes' in groups.keys()"
+  - "groups['haproxy_ingress_controller_pods_nodes'] != []"
+  - "'k8s_master_nodes' in group_names"
+  - inventory_hostname == groups['k8s_master_nodes'][0]
+  block:
+  - name: Create_k8s_haproxy_ingress_controller_directory | {{ role_name | basename }}
+    tags: Create_k8s_haproxy_ingress_controller_directory
+    file:
+      path: "{{ ansible_user_dir }}/.aya/k8s/haproxy_ingress_controller"
+      state: directory
+
+  - name: Get_haproxy_ingress_controller_installation_file | {{ role_name | basename }}
+    tags: Get_haproxy_ingress_controller_installation_file
+    get_url:
+      url: "https://github.com/haproxytech/kubernetes-ingress/raw/v{{ haproxy_ingress_controller_version }}/deploy/haproxy-ingress.yaml"
+      dest: "{{ ansible_user_dir }}/.aya/k8s/haproxy_ingress_controller/haproxy_ingress.yaml"
+      force: true
+
+  - name: Set_haproxy_ingress_controller_docker_image | {{ role_name | basename }}
+    tags: Set_haproxy_ingress_controller_docker_image
+    replace:
+      path: "{{ ansible_user_dir }}/.aya/k8s/haproxy_ingress_controller/haproxy_ingress.yaml"
+      regexp: "^(\\s*)image: haproxytech/kubernetes-ingress$"
+      replace: '\1image: haproxytech/kubernetes-ingress:{{ haproxy_ingress_controller_docker_image_version }}'
+
+  - name: Install_haproxy_ingress_controller | {{ role_name | basename }}
+    tags: Install_haproxy_ingress_controller
+    command: kubectl apply -f {{ ansible_user_dir }}/.aya/k8s/haproxy_ingress_controller/haproxy_ingress.yaml
+
+  - name: Restrict_haproxy_ingress_pods_to_designated_nodes | {{ role_name | basename }}
+    tags: Restrict_haproxy_ingress_pods_to_designated_nodes
+    command: |
+      kubectl --namespace haproxy-controller patch deployment haproxy-ingress --patch '{"spec":{"template":{"spec":{"nodeSelector":{"aya/haproxy_ingress_controller_pods_node":"true"}}}}}'
+
+  - name: Create_haproxy_ingress_controller_configmap_file | {{ role_name | basename }}
+    tags: Create_haproxy_ingress_controller_configmap_file
+    template:
+      src: "{{ haproxy_ingress_controller_configmap_template | default('templates/haproxy_ingress_controller_configmap.yaml.j2', true) }}"
+      dest: "{{ ansible_user_dir }}/.aya/k8s/haproxy_ingress_controller/haproxy_ingress_controller_configmap.yaml"
+
+  - name: Configure_haproxy_ingress_controller | {{ role_name | basename }}
+    tags: Configure_haproxy_ingress_controller
+    command: kubectl apply -f {{ ansible_user_dir }}/.aya/k8s/haproxy_ingress_controller/haproxy_ingress_controller_configmap.yaml

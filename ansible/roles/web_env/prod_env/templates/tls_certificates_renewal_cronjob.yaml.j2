@@ -1,0 +1,53 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: aya-certbot
+spec:
+  schedule: "{{ tls_certificates_renewal_schedule }}"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: ayaapp-operator
+          initContainers:
+          - name: certbot
+            image: certbot/certbot
+            command: ["/bin/sh"]
+            args:
+            - '-c'
+            - '
+                certbot renew
+                --deploy-hook "echo $RENEWED_DOMAINS > {{ apps_dir }}/renewed_domains.txt"
+              '
+            volumeMounts:
+            - name: apps
+              subPath: etc/letsencrypt
+              mountPath: /etc/letsencrypt
+            - name: apps
+              mountPath: {{ apps_dir }}
+          containers:
+          - name: kubectl
+            image: bitnami/kubectl:{{ kubectl_version }}
+            securityContext:
+              runAsUser: 0
+            command: ["/bin/bash"]
+            args:
+            - '-c'
+            - '
+                touch -a {{ apps_dir }}/renewed_domains.txt;
+                echo "Updating tls secrets...";
+                for DOMAIN in $(cat {{ apps_dir }}/renewed_domains.txt); do
+                  kubectl create secret tls tls-$DOMAIN
+                    --cert {{ apps_dir }}/etc/letsencrypt/live/$DOMAIN/fullchain.pem
+                    --key  {{ apps_dir }}/etc/letsencrypt/live/$DOMAIN/privkey.pem
+                    --dry-run -o yaml | kubectl apply -f -;
+                done
+              '
+            volumeMounts:
+            - name: apps
+              mountPath: {{ apps_dir }}
+          volumes:
+          - name: apps
+            persistentVolumeClaim:
+              claimName: aya-apps
+          restartPolicy: Never

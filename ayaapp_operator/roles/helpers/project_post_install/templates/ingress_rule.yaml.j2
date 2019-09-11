@@ -1,0 +1,7 @@
+host: {{ item }}
+http:
+  paths:
+  - path: /
+    backend:
+      serviceName: aya-python
+      servicePort: 80

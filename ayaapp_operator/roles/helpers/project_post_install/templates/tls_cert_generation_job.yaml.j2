@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aya-certbot-{{ domain }}
+  namespace: default
+spec:
+  template:
+    spec:
+      serviceAccountName: ayaapp-operator
+      initContainers:
+      - name: certbot
+        image: certbot/certbot
+        command: ["/bin/sh"]
+        args:
+        - '-c'
+        - '
+            certbot certonly --webroot -m {{ tls_email }} --agree-tos
+            -w {{ apps_dir }} -d {{ domain }} -d www.{{ domain }}
+          '
+        volumeMounts:
+        - name: apps
+          subPath: etc/letsencrypt
+          mountPath: /etc/letsencrypt
+        - name: apps
+          mountPath: {{ apps_dir }}
+      containers:
+      - name: kubectl
+        image: bitnami/kubectl:{{ kubectl_version }}
+        securityContext:
+          runAsUser: 0
+        command: ["/bin/bash"]
+        args:
+        - '-c'
+        - '
+            kubectl create secret tls tls-{{ domain }}
+              --cert {{ apps_dir }}/etc/letsencrypt/live/{{ domain }}/fullchain.pem
+              --key  {{ apps_dir }}/etc/letsencrypt/live/{{ domain }}/privkey.pem
+              --dry-run -o yaml | kubectl apply -f -;
+            kubectl patch configmap haproxy-configmap --patch ''{"data":{"ssl-redirect": "ON"}}'';
+          '
+        volumeMounts:
+        - name: apps
+          mountPath: {{ apps_dir }}
+      volumes:
+      - name: apps
+        persistentVolumeClaim:
+          claimName: aya-apps
+      restartPolicy: Never
+  backoffLimit: 2

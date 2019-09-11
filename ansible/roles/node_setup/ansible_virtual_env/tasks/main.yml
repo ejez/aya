@@ -1,0 +1,31 @@
+---
+- name: Create_python_virtual_environments_directory | {{ role_name | basename }}
+  tags: Create_python_virtual_environments_directory
+  become: true
+  file:
+    path: "{{ pyvenvs_dir }}"
+    state: directory
+    owner: "{{ ansible_user_uid | string }}"
+    group: "{{ ansible_user_gid | string }}"
+
+- name: Enable_universe_distribution_component_for_ubuntu_repositories | {{ role_name | basename }}
+  tags: Enable_universe_distribution_component_for_ubuntu_repositories
+  become: true
+  command: apt-add-repository --yes universe
+
+- name: Install_pip_and_virtualenv | {{ role_name | basename }}
+  tags: Install_pip_and_virtualenv
+  become: true
+  apt:
+    name: ['python3-pip', 'virtualenv']
+    state: present
+    update_cache: yes
+    force_apt_get: true
+
+- name: Create_ansible_virtual_env_with_needed_python_packages | {{ role_name | basename }}
+  tags: Create_ansible_virtual_env_with_needed_python_packages
+  pip:
+    name: '{{ venv_packages }}'
+    state: present
+    virtualenv: "{{ pyvenvs_dir }}/ansible"
+    virtualenv_site_packages: yes

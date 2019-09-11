@@ -1,0 +1,12 @@
+---
+# https://github.com/docker/docker-ce/releases/latest
+# https://download.docker.com/linux/ubuntu/dists/bionic/pool/stable/amd64/
+docker_package_urls:
+  docker-cli: "https://download.docker.com/linux/ubuntu/dists/bionic/pool/stable/amd64/docker-ce-cli_19.03.2~3-0~ubuntu-bionic_amd64.deb"
+  containerd: "https://download.docker.com/linux/ubuntu/dists/bionic/pool/stable/amd64/containerd.io_1.2.6-3_amd64.deb"
+  docker: "https://download.docker.com/linux/ubuntu/dists/bionic/pool/stable/amd64/docker-ce_19.03.2~3-0~ubuntu-bionic_amd64.deb"
+
+# Docker logging limits
+# https://docs.docker.com/config/containers/logging/json-file/
+docker_log_files_max_size: "200k"
+docker_logs_max_files_count: "50"

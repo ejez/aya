@@ -1,0 +1,21 @@
+---
+- when:
+  - prod_environment is defined and prod_environment|bool
+  - "'k8s_master_nodes' in group_names"
+  - inventory_hostname == groups['k8s_master_nodes'][0]
+  block:
+  - name: Create_prod_env_directory | {{ role_name | basename }}
+    tags: Create_prod_env_directory
+    file:
+      path: "{{ ansible_user_dir }}/.aya/web_env/prod_env"
+      state: directory
+
+  - name: Create_tls_certificates_renewal_cronjob_k8s_file | {{ role_name | basename }}
+    tags: Create_tls_certificates_renewal_cronjob_k8s_file
+    template:
+      src: templates/tls_certificates_renewal_cronjob.yaml.j2
+      dest: "{{ ansible_user_dir }}/.aya/web_env/prod_env/tls_certificates_renewal_cronjob.yaml"
+
+  - name: Create_tls_certificates_renewal_cronjob | {{ role_name | basename }}
+    tags: Create_tls_certificates_renewal_cronjob
+    command: kubectl apply -f {{ ansible_user_dir }}/.aya/web_env/prod_env/tls_certificates_renewal_cronjob.yaml

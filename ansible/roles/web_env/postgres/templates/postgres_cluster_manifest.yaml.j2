@@ -1,0 +1,15 @@
+{# Note: the cluster name must begin with the teamId #}
+apiVersion: "acid.zalan.do/v1"
+kind: postgresql
+metadata:
+  name: aya-postgres-cluster
+  namespace: default
+spec:
+  teamId: "AYA"
+  volume:
+    size: {{ postgres_volume_size }}
+  numberOfInstances: 2
+  postgresql:
+{# https://github.com/zalando/postgres-operator/blob/master/docs/reference/cluster_manifest.md#postgres-parameters #}
+{# https://github.com/zalando/postgres-operator/blob/master/manifests/complete-postgres-manifest.yaml#L32 #}
+    version: "10"

@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ayaapp-operator
+spec:
+  replicas: {{ ayaapp_operator_replicas }}
+  selector:
+    matchLabels:
+      name: ayaapp-operator
+  template:
+    metadata:
+      labels:
+        name: ayaapp-operator
+    spec:
+      nodeSelector:
+        aya/ayaapp_operator_pods_node: "true"
+      serviceAccountName: ayaapp-operator
+      containers:
+        - name: ansible
+          command:
+          - /usr/local/bin/ao-logs
+          - /tmp/ansible-operator/runner
+          - stdout
+          image: "ejez/ayaapp-operator:{{ ayaapp_operator_docker_image_version }}"
+          imagePullPolicy: Always
+          volumeMounts:
+          - mountPath: /tmp/ansible-operator/runner
+            name: runner
+            readOnly: true
+        - name: operator
+          image: "ejez/ayaapp-operator:{{ ayaapp_operator_docker_image_version }}"
+          imagePullPolicy: Always
+          volumeMounts:
+          - mountPath: /tmp/ansible-operator/runner
+            name: runner
+          - name: apps
+            mountPath: {{ apps_dir }}
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "ayaapp-operator"
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres.aya-postgres-cluster.credentials
+                  key: password
+      volumes:
+        - name: runner
+          emptyDir: {}
+        - name: apps
+          persistentVolumeClaim:
+            claimName: aya-apps

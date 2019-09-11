@@ -1,0 +1,18 @@
+---
+- name: Check_if_project_is_already_installed
+  tags: Check_if_project_is_already_installed
+  when: inventory_hostname == "localhost"
+  shell: kubectl exec $(kubectl get pods -l app=aya-python --no-headers -o custom-columns=":metadata.name" | tail -n 1) -c uwsgi -- bash -c "test -f {{ apps_dir }}/{{ deployment_env }}/{{ project }}/manage.py"
+  ignore_errors: true
+  register: project_is_installed_check
+  changed_when: false
+
+- when:
+  - hostvars['localhost'].project_is_installed_check.rc == 1
+  - inventory_hostname == groups['aya_project_setup_pods'][0]
+  block:
+  - name: Create_project_directory | {{ role_name | basename }}
+    tags: Create_project_directory
+    file:
+      path: "{{ project_dir }}"
+      state: directory

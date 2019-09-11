@@ -1,0 +1,12 @@
+---
+# OPTIONAL
+
+# if 'true' additional setup needed for a production environment will be done.
+prod_environment: false
+
+# tls certificates renewal schedule in cron format.
+# https://crontab.guru/
+tls_certificates_renewal_schedule: "44 2 3 * *"
+
+# kubectl version used to create k8s tls secrets, should be close to cluster k8s version
+kubectl_version: "1.15.3"

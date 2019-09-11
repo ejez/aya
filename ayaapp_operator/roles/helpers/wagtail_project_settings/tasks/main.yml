@@ -1,0 +1,48 @@
+---
+- name: Added_settings | {{ role_name | basename }}
+  tags: Added_settings
+  blockinfile:
+    path: "{{ project_dir }}/{{ project }}/settings/base.py"
+    block: |
+      DATABASES = {
+          'default': {
+              'ENGINE': 'django.db.backends.postgresql',
+              'HOST': 'aya-postgres-cluster.default',
+              'PORT': '5432',
+          }
+      }
+    marker: "# {mark} PROJECT SETTINGS ADDED BY ANSIBLE ROLE {{ role_name | basename }}"
+
+- name: Read_dev_settings_file | {{ role_name | basename }}
+  tags: Read_dev_settings_file
+  slurp:
+    src: "{{ project_dir }}/{{ project }}/settings/dev.py"
+  register: wagtail_original_settings
+
+- name: Delete_initial_dev_settings_file | {{ role_name | basename }}
+  tags: Delete_initial_dev_settings_file
+  file:
+    path: "{{ project_dir }}/{{ project }}/settings/dev.py"
+    state: absent
+
+- name: Create_environment_specific_settings_file | {{ role_name | basename }}
+  tags: Create_environment_specific_settings_file
+  template:
+    src: "../../../helpers/project_settings_templates/{{ deployment_env }}.py.j2"
+    dest: "{{ project_dir }}/{{ project }}/settings/{{ deployment_env }}.py"
+
+- name: Create_local_settings_file | {{ role_name | basename }}
+  tags: Create_local_settings_file
+  template:
+    src: "../../../helpers/project_settings_templates/local.py.j2"
+    dest: "{{ project_dir }}/{{ project }}/settings/local.py"
+
+- name: Set_django_settings_module | {{ role_name | basename }}
+  tags: Set_django_settings_module
+  replace:
+    path: "{{ project_dir }}/{{ item }}"
+    regexp: "^(\\s*)os\\.environ\\.setdefault(.+)DJANGO_SETTINGS_MODULE(.+){{ project }}\\.settings\\.dev([\"']\\))$"
+    replace: '\1os.environ.setdefault\2DJANGO_SETTINGS_MODULE\3{{ project }}.settings.local\4'
+  loop:
+    - manage.py
+    - "{{ project }}/wsgi.py"

@@ -1,0 +1,47 @@
+# Make sure you have enough ram and resources in your node for the vagrant boxes
+[sandbox_nodes]
+sandbox-1 ansible_ssh_private_key_file="../vagrant/.vagrant/machines/sandbox-1/virtualbox/private_key"
+sandbox-2 ansible_ssh_private_key_file="../vagrant/.vagrant/machines/sandbox-2/virtualbox/private_key"
+sandbox-3 ansible_ssh_private_key_file="../vagrant/.vagrant/machines/sandbox-3/virtualbox/private_key"
+
+[vagrant_nodes:children]
+sandbox_nodes
+
+[keepalived_nodes]
+sandbox-[1:3]
+
+[k8s_master_nodes]
+sandbox-[1:3]
+
+[k8s_worker_nodes]
+sandbox-[1:3]
+
+[k8s_cluster_nodes:children]
+k8s_master_nodes
+k8s_worker_nodes
+
+[docker_nodes:children]
+k8s_cluster_nodes
+
+[k8s_apiservers_loadbalancer_nodes]
+sandbox-[2:3]
+
+# nodes with block devices participating in gluster cluster and defined in
+# topology file in playbooks/1_node_setup/custom/k8s/k8s_gluster/
+[gluster_nodes]
+sandbox-[1:3]
+
+[haproxy_ingress_controller_pods_nodes]
+sandbox-[1:3]
+
+[postgres_pods_nodes]
+sandbox-[1:3]
+
+[uwsgi_nginx_pods_nodes]
+sandbox-[1:3]
+
+[ayaapp_operator_pods_nodes]
+sandbox-[1:3]
+
+[common_vars_nodes:children]
+sandbox_nodes

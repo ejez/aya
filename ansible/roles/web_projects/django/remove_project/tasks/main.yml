@@ -1,0 +1,31 @@
+---
+- when:
+    - "'k8s_master_nodes' in group_names"
+    - inventory_hostname == groups['k8s_master_nodes'][0]
+  block:
+  - name: Wake_ayaapp_operator_up | {{ role_name | basename }}
+    tags: Wake_ayaapp_operator_up
+    command: kubectl scale --current-replicas=0 --replicas=1 deployment/ayaapp-operator
+    ignore_errors: true
+
+  - name: Delete_project_k8s_custom_resource | {{ role_name | basename }}
+    tags: Delete_project_k8s_custom_resource
+    command: kubectl delete -f {{ ansible_user_dir }}/.aya/web_projects/{{ deployment_env}}_{{ project }}_cr.yaml
+    ignore_errors: true
+
+  - name: Delete_project_k8s_custom_resource_file | {{ role_name | basename }}
+    tags: Delete_project_k8s_custom_resource_file
+    file:
+      path: "{{ ansible_user_dir }}/.aya/web_projects/{{ deployment_env}}_{{ project }}_cr.yaml"
+      state: absent
+
+- name: Remove_project_entry_from_local_node_hosts_file | {{ role_name | basename }}
+  tags: Remove_project_entry_from_local_node_hosts_file
+  become: true
+  ignore_errors: true
+  run_once: true
+  local_action:
+    module: lineinfile
+    path: /etc/hosts
+    regexp: ' {{ deployment_env }}\.{{ project }}$'
+    state: absent

@@ -1,0 +1,175 @@
+---
+- when:
+  - hostvars['localhost'].project_is_installed_check.rc == 1
+  - inventory_hostname in groups['aya_project_setup_pods']
+  block:
+  - name: Propagate_project_virtual_environment_to_all_uwsgi_nodes | {{ role_name | basename }}
+    tags: Propagate_project_virtual_environment_to_all_uwsgi_nodes
+    command: bash -c "
+      mkdir -p {{ pyvenvs_dir }}/pipcache_$UID &&
+      python -m venv --copies {{ pyvenvs_dir }}/{{ deployment_env }}_{{ project }} &&
+      source {{ pyvenvs_dir }}/{{ deployment_env }}_{{ project }}/bin/activate &&
+      pip install --cache-dir {{ pyvenvs_dir }}/pipcache_$UID --upgrade pip &&
+      pip install --cache-dir {{ pyvenvs_dir }}/pipcache_$UID --requirement {{ project_dir }}/venv_requirements.txt"
+    register: project_virtual_environment_propagate_command_output
+    changed_when: "'Successfully installed' in project_virtual_environment_propagate_command_output.stdout"
+
+- when:
+  - hostvars['localhost'].project_is_installed_check.rc == 1
+  - inventory_hostname == "localhost"
+  block:
+  - name: Create_project_secret_key_entry | {{ role_name | basename }}
+    tags: Create_project_secret_key_entry
+    vars:
+      project_secret_key: "{{ hostvars[groups['aya_project_setup_pods'][0]][project_type + '_original_settings']['content'] | b64decode
+            | regex_search(\"SECRET_KEY = '.+'\")
+            | regex_replace(\"SECRET_KEY = \")
+            | regex_replace(\"'\") }}"
+    command: >
+      kubectl patch secret aya-python-project-secret-keys
+        --patch '{"data":{"{{ deployment_env }}_{{ project }}": "{{ project_secret_key | b64encode }}"}}'
+
+  - name: Create_uwsgi_vassal_configmap_entry | {{ role_name | basename }}
+    tags: Create_uwsgi_vassal_configmap_entry
+    command: >
+      kubectl patch configmap aya-python-uwsgi
+        --patch "{{ lookup('template', 'templates/uwsgi.ini.j2') }}"
+
+  - name: Create_nginx_configmap_entry | {{ role_name | basename }}
+    tags: Create_nginx_configmap_entry
+    command: >
+      kubectl patch configmap aya-python-nginx
+        --patch "{{ lookup('template', 'templates/nginx.conf.j2') }}"
+
+  - when:
+    - configure_for_production is defined
+    - configure_for_production|bool
+    - domain is defined
+    block:
+    - name: Create_nginx_domain_configmap_entry | {{ role_name | basename }}
+      tags: Create_nginx_domain_configmap_entry
+      command: >
+        kubectl patch configmap aya-python-nginx
+          --patch "{{ lookup('template', 'templates/nginx_domain.conf.j2') }}"
+
+    - name: Get_aya_python_ingress | {{ role_name | basename }}
+      tags: Get_aya_python_ingress
+      k8s_facts:
+        api_version: networking.k8s.io/v1beta1
+        kind: Ingress
+        name: aya-python
+        namespace: default
+      register: aya_python_ingress
+
+    - name: Add_domain_ingress_rules | {{ role_name | basename }}
+      tags: Add_domain_ingress_rules
+      command: >
+        kubectl patch ingress aya-python --type json
+          --patch '[{"op": "add", "path": "/spec/rules/-", "value": {{ lookup("template", "templates/ingress_rule.yaml.j2") | from_yaml }} }]'
+      when: item not in aya_python_ingress.resources[0].spec.rules|map(attribute='host')|list
+      loop:
+      - "{{ domain }}"
+      - "www.{{ domain }}"
+
+    - name: Add_domain_ingress_tls_config | {{ role_name | basename }}
+      tags: Add_domain_ingress_tls_config
+      command: >
+        kubectl patch ingress aya-python --type json
+          --patch '[{"op": "add", "path": "/spec/tls/-", "value": {{ lookup("template", "templates/ingress_tls.yaml.j2") | from_yaml }} }]'
+      when: domain not in aya_python_ingress.resources[0].spec.tls|map(attribute='hosts')|list|flatten
+
+- when:
+  - hostvars['localhost'].project_is_installed_check.rc == 1
+  - inventory_hostname == groups['aya_project_setup_pods'][0]
+  block:
+  - name: Wait_for_project_secret_key_to_be_available | {{ role_name | basename }}
+    tags: Wait_for_project_secret_key_to_be_available
+    wait_for:
+      path: "/etc/aya/secrets/python/project_secret_keys/{{ deployment_env }}_{{ project }}"
+
+  - name: Wait_for_project_db_user_password_to_be_available | {{ role_name | basename }}
+    tags: Wait_for_project_db_user_password_to_be_available
+    wait_for:
+      path: "/etc/aya/secrets/python/project_db_user_passwords/{{ deployment_env }}_{{ project }}"
+
+  - name: Django_migrate | {{ role_name | basename }}
+    tags: Django_migrate
+    django_manage:
+      command: migrate
+      app_path: "{{ apps_dir }}/{{ deployment_env }}/{{ project }}"
+      virtualenv: "{{ pyvenvs_dir }}/{{ deployment_env }}_{{ project }}"
+
+  - name: Django_collectstatic | {{ role_name | basename }}
+    tags: Django_collectstatic
+    django_manage:
+      command: collectstatic
+      app_path: "{{ apps_dir }}/{{ deployment_env }}/{{ project }}"
+      virtualenv: "{{ pyvenvs_dir }}/{{ deployment_env }}_{{ project }}"
+
+  - name: Django_create_superuser | {{ role_name | basename }}
+    tags: Django_create_superuser
+    django_manage:
+      command: >
+        shell --command="from django.contrib.auth.models import User; User.objects.create_superuser('{{ admin_username }}', '{{ admin_email }}', '{{ admin_password }}')"
+      app_path: "{{ apps_dir }}/{{ deployment_env }}/{{ project }}"
+      virtualenv: "{{ pyvenvs_dir }}/{{ deployment_env }}_{{ project }}"
+
+- when:
+  - hostvars['localhost'].project_is_installed_check.rc == 1
+  - inventory_hostname == "localhost"
+  block:
+  - name: Delete_project_setup_daemonset | {{ role_name | basename }}
+    tags: Delete_project_setup_daemonset
+    k8s:
+      definition: "{{ lookup('template', '../project_setup_daemonset/templates/project_setup_daemonset.yaml.j2') }}"
+      state: absent
+
+  - name: Get_aya_python_pods | {{ role_name | basename }}
+    tags: Get_aya_python_pods
+    command: kubectl get pods -l app=aya-python --no-headers -o custom-columns=":metadata.name"
+    register: aya_python_pods
+
+  - name: Wait_for_project_nginx_file_to_be_available_in_nginx_containers | {{ role_name | basename }}
+    tags: Wait_for_project_nginx_file_to_be_available_in_nginx_containers
+    shell: kubectl exec {{ item }} -c nginx -- sh -c "test -f /etc/nginx/conf.d/{{ deployment_env }}_{{ project }}.conf"
+    register: project_nginx_file_test
+    until: project_nginx_file_test.rc == 0
+    retries: 100
+    delay: 3
+    changed_when: false
+    loop: "{{ aya_python_pods.stdout_lines }}"
+
+  - name: Wait_for_project_nginx_domain_file_to_be_available_in_nginx_containers | {{ role_name | basename }}
+    tags: Wait_for_project_nginx_domain_file_to_be_available_in_nginx_containers
+    when:
+      - configure_for_production is defined
+      - configure_for_production|bool
+      - domain is defined
+    shell: kubectl exec {{ item }} -c nginx -- sh -c "test -f /etc/nginx/conf.d/{{ domain }}.conf"
+    register: project_nginx_domain_file_test
+    until: project_nginx_domain_file_test.rc == 0
+    retries: 100
+    delay: 3
+    changed_when: false
+    loop: "{{ aya_python_pods.stdout_lines }}"
+
+  - name: Reload_nginx | {{ role_name | basename }}
+    tags: Reload_nginx
+    command: kubectl exec {{ item }} -c nginx -- sh -c "nginx -s reload"
+    loop: "{{ aya_python_pods.stdout_lines }}"
+
+  - when:
+      - configure_for_production is defined
+      - configure_for_production|bool
+      - domain is defined
+    block:
+    - name: Disable_haproxy_ssl_redirect | {{ role_name | basename }}
+      tags: Disable_haproxy_ssl_redirect
+      command: >
+        kubectl patch configmap haproxy-configmap
+          --patch '{"data":{"ssl-redirect": "OFF"}}'
+
+    - name: Generate_tls_certificate_and_create_its_secret | {{ role_name | basename }}
+      tags: Generate_tls_certificate_and_create_its_secret
+      k8s:
+        definition: "{{ lookup('template', 'templates/tls_cert_generation_job.yaml.j2') }}"

@@ -1,0 +1,13 @@
+---
+#ansible-playbook playbooks/1_node_setup/vagrant.yml --ask-become-pass -i inventories/local_nodes.ini
+
+- name: vagrant_setup
+  tags: vagrant_setup
+  hosts: vagrant_host_nodes
+  vars:
+    variables_file: "{{lookup('first_found', 'custom/vagrant/' + inventory + '_variables.yml', errors='ignore')}}"
+  tasks:
+  - when: variables_file is file
+    include_vars: "{{ variables_file }}"
+  - import_role:
+      name: ../../roles/node_setup/vagrant

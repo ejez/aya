@@ -1,0 +1,8 @@
+---
+#ansible-playbook playbooks/2_web_env/1_web_env.yml -i inventories/sandbox_nodes.ini
+#ansible-playbook playbooks/2_web_env/1_web_env.yml -i inventories/example_nodes.ini
+
+- import_playbook: postgres.yml
+- import_playbook: python.yml
+- import_playbook: ayaapp_operator.yml
+- import_playbook: prod_env.yml

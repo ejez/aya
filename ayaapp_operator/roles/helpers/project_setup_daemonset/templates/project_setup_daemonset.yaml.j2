@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: aya-project-setup-python-{{ project_python_version | regex_replace('\.', '-') }}
+  namespace: default
+  labels:
+    app: aya-project-setup-python-{{ project_python_version | regex_replace('\.', '-') }}
+spec:
+  selector:
+    matchLabels:
+      app: aya-project-setup-python-{{ project_python_version | regex_replace('\.', '-') }}
+  template:
+    metadata:
+      labels:
+        app: aya-project-setup-python-{{ project_python_version | regex_replace('\.', '-') }}
+    spec:
+      nodeSelector:
+        aya/uwsgi_nginx_pods_node: "true"
+      containers:
+      - name: python
+        image: "python:{{ project_python_version }}"
+        command: ["/bin/bash", "-c", "sleep infinity"]
+        volumeMounts:
+        - name: apps
+          mountPath: {{ apps_dir }}
+        - name: pyvenvs
+          mountPath: {{ pyvenvs_dir }}
+        - name: aya-python-project-db-user-passwords
+          mountPath: "/etc/aya/secrets/python/project_db_user_passwords"
+          readOnly: true
+        - name: aya-python-project-secret-keys
+          mountPath: "/etc/aya/secrets/python/project_secret_keys"
+          readOnly: true
+      volumes:
+      - name: apps
+        persistentVolumeClaim:
+          claimName: aya-apps
+      - name: pyvenvs
+        hostPath:
+          path: {{ pyvenvs_dir }}
+          type: Directory
+      - name: aya-python-project-db-user-passwords
+        secret:
+          secretName: aya-python-project-db-user-passwords
+      - name: aya-python-project-secret-keys
+        secret:
+          secretName: aya-python-project-secret-keys

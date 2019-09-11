@@ -1,0 +1,3 @@
+---
+# Update os packages when setting up nodes?
+update_operating_system_packages: true

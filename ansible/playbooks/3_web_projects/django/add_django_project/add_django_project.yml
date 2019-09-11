@@ -1,0 +1,14 @@
+---
+#ansible-playbook playbooks/3_web_projects/django/add_django_project/add_django_project.yml --ask-become-pass -i inventories/sandbox_nodes.ini
+#ansible-playbook playbooks/3_web_projects/django/add_django_project/add_django_project.yml --ask-become-pass -i inventories/example_nodes.ini
+
+# Note: when asked for sudo password provide the local node password, as it
+# used to have write access to local node /etc/hosts file.
+
+- name: Add_django_project
+  tags: Add_django_project
+  hosts: k8s_master_nodes[0]
+  vars_files: custom/add_django_project_variables.yml
+  tasks:
+  - import_role:
+      name: ../../../../roles/web_projects/django/add_django_project

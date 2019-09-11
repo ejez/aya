@@ -1,0 +1,14 @@
+---
+#ansible-playbook playbooks/2_web_env/ayaapp_operator.yml -i inventories/sandbox_nodes.ini
+#ansible-playbook playbooks/2_web_env/ayaapp_operator.yml -i inventories/example_nodes.ini
+
+- name: Setup_ayaapp_operator
+  tags: Setup_ayaapp_operator
+  hosts: k8s_master_nodes[0]
+  vars:
+    variables_file: "{{lookup('first_found', 'custom/ayaapp_operator/' + inventory + '_variables.yml', errors='ignore')}}"
+  tasks:
+  - when: variables_file is file
+    include_vars: "{{ variables_file }}"
+  - import_role:
+      name: ../../roles/web_env/ayaapp_operator

@@ -1,0 +1,55 @@
+---
+- when:
+  - "'k8s_master_nodes' in groups.keys()"
+  - groups['k8s_master_nodes']|length|int >= 2
+  - "'k8s_apiservers_loadbalancer_nodes' in group_names"
+  become: true
+  block:
+  - name: Install_keepalived | {{ role_name | basename }}
+    tags: Install_keepalived
+    apt:
+      name: "keepalived"
+      update_cache: true
+      state: present
+
+  - name: Generate_k8s_apiservers_loadbalancers_keepalived_password | {{ role_name | basename }}
+    tags: Generate_k8s_apiservers_loadbalancers_keepalived_password
+    shell: openssl rand -hex $((20 + RANDOM % 10))
+    register: k8s_apiservers_loadbalancers_keepalived_password
+
+  - name: Create_keepalived_config | {{ role_name | basename }}
+    tags: Create_keepalived_config
+    blockinfile:
+      path: "/etc/keepalived/keepalived.conf"
+      block: "{{ lookup('template', 'templates/keepalived.conf.j2') }}"
+      create: true
+      marker: "# {mark} k8s apiservers loadbalancers keepalived CONFIG MANAGED BY ANSIBLE ROLE {{ role_name | basename }}"
+
+  - name: Restart_keepalived_and_enable_on_boot | {{ role_name | basename }}
+    tags: Restart_keepalived_and_enable_on_boot
+    systemd:
+      name: keepalived
+      enabled: true
+      state: restarted
+      daemon_reload: true
+
+  - name: Install_haproxy | {{ role_name | basename }}
+    tags: Install_haproxy
+    apt:
+      name: "haproxy"
+      update_cache: true
+      state: present
+
+  - name: Create_haproxy_config | {{ role_name | basename }}
+    tags: Create_haproxy_config
+    template:
+      src: templates/haproxy.cfg.j2
+      dest: "/etc/haproxy/haproxy.cfg"
+
+  - name: Restart_haproxy_and_enable_on_boot | {{ role_name | basename }}
+    tags: Restart_haproxy_and_enable_on_boot
+    systemd:
+      name: haproxy
+      enabled: true
+      state: restarted
+      daemon_reload: true

@@ -1,0 +1,54 @@
+---
+- tags: Add_site_entry_to_local_node_hosts_file
+  import_role:
+    name: "{{ role_path }}/../../helpers/add_project_entry_to_hosts_file"
+
+- when:
+    - "'ayaapp_operator_pods_nodes' in groups.keys()"
+    - "groups['ayaapp_operator_pods_nodes'] != []"
+    - "'k8s_master_nodes' in group_names"
+    - inventory_hostname == groups['k8s_master_nodes'][0]
+  block:
+  - name: Wake_ayaapp_operator_up | {{ role_name | basename }}
+    tags: Wake_ayaapp_operator_up
+    command: kubectl scale --current-replicas=0 --replicas=1 deployment/ayaapp-operator
+    ignore_errors: true
+
+  - name: Create_web_projects_directory | {{ role_name | basename }}
+    tags: Create_web_projects_directory
+    file:
+      path: "{{ ansible_user_dir }}/.aya/web_projects"
+      state: directory
+
+  - name: Create_project_k8s_custom_resource_file | {{ role_name | basename }}
+    tags: Create_project_k8s_custom_resource_file
+    template:
+      src: templates/django_cr.yaml.j2
+      dest: "{{ ansible_user_dir }}/.aya/web_projects/{{ deployment_env}}_{{ project }}_cr.yaml"
+
+  - name: Create_project_k8s_custom_resource | {{ role_name | basename }}
+    tags: Create_project_k8s_custom_resource
+    command: kubectl apply -f {{ ansible_user_dir }}/.aya/web_projects/{{ deployment_env}}_{{ project }}_cr.yaml
+
+- name: Display_ayaapp_operator_useful_commands | {{ role_name | basename }}
+  tags: Display_ayaapp_operator_useful_commands
+  when:
+    - "'ayaapp_operator_pods_nodes' in groups.keys()"
+    - "groups['ayaapp_operator_pods_nodes'] != []"
+    - "'k8s_master_nodes' in groups.keys()"
+    - "groups['k8s_master_nodes'] != []"
+  pause:
+    seconds: 1
+    prompt: |
+
+      //////////////////////////////////////////////////////////////////////////////////////////////////
+
+        # You can check ayaapp-operator progress using:
+        kubectl logs $(kubectl get pods -l name=ayaapp-operator --no-headers -o custom-columns=":metadata.name") -c operator
+        # and
+        kubectl logs $(kubectl get pods -l name=ayaapp-operator --no-headers -o custom-columns=":metadata.name") -c ansible
+
+        # When finished you can scale down ayaapp-operator to 0 using:
+        kubectl scale --replicas=0 deployment/ayaapp-operator
+
+      //////////////////////////////////////////////////////////////////////////////////////////////////

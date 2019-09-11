@@ -1,0 +1,40 @@
+apiVersion: aya.pyxo.net/v1beta1
+kind: Django
+metadata:
+  name: {{ project }}-{{ deployment_env }}
+spec:
+  # Project name
+  project: {{ project }}
+  # Deployment environment (prod, dev, staging/stg, test, play ...)
+  deployment_env: {{ deployment_env }}
+
+  # OPTIONAL
+
+  # set to 'django' for a plain django project, 'wagtail' for a wagtail project
+  # defaults to 'django' if not specified.
+  {{ ('project_type: ' + project_type) if project_type is defined else '' }}
+
+  # https://www.djangoproject.com/download/
+  # https://github.com/django/django/releases
+  {{ ('django_version: ' + django_version) if django_version is defined else '' }}
+
+  # https://github.com/wagtail/wagtail/releases
+  {{ ('wagtail_version: ' + wagtail_version) if wagtail_version is defined else '' }}
+
+  # Note: project python version should match uwsgi python version
+  # https://docs.djangoproject.com/en/2.2/releases/2.2/#python-compatibility
+  {{ ('project_python_version: ' + project_python_version) if project_python_version is defined else '' }}
+
+  # extra python packages to install in project virtual env
+  {{ ('extra_python_packages: ' + extra_python_packages) if extra_python_packages is defined else '' }}
+
+  # superuser credentials
+  {{ ('admin_username: ' + admin_username) if admin_username is defined else '' }}
+  {{ ('admin_email: ' + admin_email) if admin_email is defined else '' }}
+  {{ ('admin_password: ' + admin_password) if admin_password is defined else '' }}
+
+  # for production projects:
+  {{ ('configure_for_production: ' + configure_for_production) if configure_for_production is defined else '' }}
+  {{ ('domain: ' + domain) if domain is defined else '' }}
+  # email to use when generating tls certificate
+  {{ ('tls_email: ' + tls_email) if tls_email is defined else '' }}

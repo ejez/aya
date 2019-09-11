@@ -1,0 +1,127 @@
+---
+- ignore_errors: true
+  block:
+  - name: Remove_project_virtual_environment | {{ role_name | basename }}
+    tags: Remove_project_virtual_environment
+    when: inventory_hostname in groups['aya_project_removal_pods']
+    file:
+      path: "{{ pyvenvs_dir }}/{{ deployment_env }}_{{ project }}"
+      state: absent
+
+  - name: Remove_project_directory | {{ role_name | basename }}
+    tags: Remove_project_directory
+    when: inventory_hostname == groups['aya_project_removal_pods'][0]
+    file:
+      path: "{{ project_dir }}"
+      state: absent
+
+  - when: inventory_hostname == "localhost"
+    block:
+    - name: Delete_project_removal_daemonset | {{ role_name | basename }}
+      tags: Delete_project_removal_daemonset
+      k8s:
+        definition: "{{ lookup('template', '../helpers/project_removal_daemonset/templates/project_removal_daemonset.yaml.j2') }}"
+        state: absent
+
+    - name: Remove_uwsgi_vassal_configmap_entry | {{ role_name | basename }}
+      tags: Remove_uwsgi_vassal_configmap_entry
+      command: >
+        kubectl patch configmap aya-python-uwsgi --type json
+          --patch '[{"op": "remove", "path": "/data/{{ deployment_env }}_{{ project }}.ini"}]'
+
+    - name: Remove_nginx_configmap_entry | {{ role_name | basename }}
+      tags: Remove_nginx_configmap_entry
+      command: >
+        kubectl patch configmap aya-python-nginx --type json
+          --patch '[{"op": "remove", "path": "/data/{{ deployment_env }}_{{ project }}.conf"}]'
+
+    - name: Remove_project_secret_key_entry | {{ role_name | basename }}
+      tags: Remove_project_secret_key_entry
+      command: >
+        kubectl patch secret aya-python-project-secret-keys --type json
+          --patch '[{"op": "remove", "path": "/data/{{ deployment_env }}_{{ project }}"}]'
+
+    - name: Remove_db_user_password_secret_entry | {{ role_name | basename }}
+      tags: Remove_db_user_password_secret_entry
+      command: >
+        kubectl patch secret aya-python-project-db-user-passwords --type json
+          --patch '[{"op": "remove", "path": "/data/{{ db_user }}"}]'
+
+    - name: Remove_db | {{ role_name | basename }}
+      tags: Remove_db
+      postgresql_db:
+        name: "{{ db }}"
+        state: absent
+        login_host: aya-postgres-cluster.default
+        login_user: postgres
+        login_password: "{{ lookup('env','PGPASSWORD') }}"
+
+    - name: Remove_db_user | {{ role_name | basename }}
+      tags: Remove_db_user
+      postgresql_user:
+        name: "{{ db_user }}"
+        state: absent
+        login_host: aya-postgres-cluster.default
+        login_user: postgres
+        login_password: "{{ lookup('env','PGPASSWORD') }}"
+
+    - when:
+      - domain is defined
+      block:
+      - name: Remove_tls_secret | {{ role_name | basename }}
+        tags: Remove_tls_secret
+        command: kubectl delete secret tls-{{ domain }}
+
+      - name: Remove_nginx_domain_configmap_entry | {{ role_name | basename }}
+        tags: Remove_nginx_domain_configmap_entry
+        command: >
+          kubectl patch configmap aya-python-nginx --type json
+            --patch '[{"op": "remove", "path": "/data/{{ domain }}.conf"}]'
+
+      - name: Get_aya_python_ingress | {{ role_name | basename }}
+        tags: Get_aya_python_ingress
+        k8s_facts:
+          api_version: networking.k8s.io/v1beta1
+          kind: Ingress
+          name: aya-python
+          namespace: default
+        register: aya_python_ingress
+
+      - tags: Remove_domain_ingress_rules
+        command: >
+          kubectl patch ingress aya-python --type json
+            --patch '{{ [{ "op": "remove", "path": "/spec/rules/"+(index|string) }]|string }}'
+        when: item.host == domain
+        loop: "{{ aya_python_ingress.resources[0].spec.rules }}"
+        loop_control:
+          index_var: index
+          label: "{{ item.host }}"
+
+      - name: Get_aya_python_ingress | {{ role_name | basename }}
+        tags: Get_aya_python_ingress
+        k8s_facts:
+          api_version: networking.k8s.io/v1beta1
+          kind: Ingress
+          name: aya-python
+          namespace: default
+        register: aya_python_ingress
+
+      - tags: Remove_domain_ingress_rules
+        command: >
+          kubectl patch ingress aya-python --type json
+            --patch '{{ [{ "op": "remove", "path": "/spec/rules/"+(index|string) }]|string }}'
+        when: item.host == 'www.' + domain
+        loop: "{{ aya_python_ingress.resources[0].spec.rules }}"
+        loop_control:
+          index_var: index
+          label: "{{ item.host }}"
+
+      - tags: Remove_domain_ingress_tls
+        command: >
+          kubectl patch ingress aya-python --type json
+            --patch '{{ [{ "op": "remove", "path": "/spec/tls/"+(index|string) }]|string }}'
+        when: domain in item.hosts or ('www.' + domain) in item.hosts
+        loop: "{{ aya_python_ingress.resources[0].spec.tls }}"
+        loop_control:
+          index_var: index
+          label: "{{ item.secretName }}"

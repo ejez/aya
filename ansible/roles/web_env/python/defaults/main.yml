@@ -1,0 +1,9 @@
+---
+# web apps volume size
+apps_vol_size: "1Gi"
+
+nginx_image: "nginx:alpine"
+
+# Note: uwsgi python version should match python projects python version
+uwsgi_python_version: "3.7"
+uwsgi_image: "python:{{ uwsgi_python_version }}"

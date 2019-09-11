@@ -1,0 +1,16 @@
+---
+# needed only when creating k8s high availabilty cluster
+k8s_apiservers_loadbalancers_virtual_ip: "192.168.33.09"
+
+k8s_pod_network_cidr: "10.99.0.0/16"
+
+
+# OPTIONAL
+
+# https://docs.projectcalico.org/v3.8/getting-started/kubernetes/installation/calico#installing-with-the-kubernetes-api-datastore50-nodes-or-less
+calico_yaml_file_url: "https://docs.projectcalico.org/v3.8/manifests/calico.yaml"
+
+# "glusterfs-storage" (or "rook-ceph-block" if installed)
+# or any other defined storageclass
+# (Be minded that "rook-ceph-block" does not support "ReadWriteMany")
+k8s_default_storage_class: "glusterfs-storage"

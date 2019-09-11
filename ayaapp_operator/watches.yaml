@@ -1,0 +1,8 @@
+---
+- version: v1
+  group: aya.pyxo.net
+  kind: Django
+  playbook: /opt/ansible/playbooks/django.yml
+  finalizer:
+    name: finalizer.aya.pyxo.net
+    playbook: /opt/ansible/playbooks/remove_project.yml

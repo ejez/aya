@@ -1,0 +1,9 @@
+- name: Add_project_entry_to_local_node_hosts_file | {{ role_name | basename }}
+  tags: Add_project_entry_to_local_node_hosts_file
+  become: true
+  ignore_errors: true
+  run_once: true
+  local_action:
+    module: lineinfile
+    path: /etc/hosts
+    line: "{{ project_access_ip }} {{ deployment_env }}.{{ project }}"

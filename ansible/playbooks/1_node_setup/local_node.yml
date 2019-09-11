@@ -1,0 +1,9 @@
+---
+#ansible-playbook playbooks/1_node_setup/local_node.yml --ask-become-pass -i inventories/local_nodes.ini
+
+- name: Local_node_specific_setup
+  tags: Local_node_specific_setup
+  hosts: local_nodes[0]
+  tasks:
+  - import_role:
+      name: ../../roles/node_setup/local_node

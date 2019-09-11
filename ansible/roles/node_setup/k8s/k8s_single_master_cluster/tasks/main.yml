@@ -1,0 +1,49 @@
+---
+# https://kubernetes.io/docs/setup/independent/install-kubeadm/
+- when:
+    - "'k8s_master_nodes' in group_names"
+    - inventory_hostname == groups['k8s_master_nodes'][0]
+  block:
+  - name: Initialize_kubernetes_cluster | {{ role_name | basename }}
+    tags: Initialize_kubernetes_cluster
+    become: true
+    command: >
+      kubeadm init
+        --pod-network-cidr={{ k8s_pod_network_cidr }}
+        --apiserver-advertise-address={{ hostvars[inventory_hostname]['ansible_' + cluster_network_interface].ipv4.address }}
+    ignore_errors: true
+    register: kubeadm_init_output
+
+  - name: Create_kube_directory | {{ role_name | basename }}
+    tags: Create_kube_directory
+    file:
+      path: "{{ ansible_user_dir }}/.kube"
+      state: directory
+
+  - name: Copy_config_file | {{ role_name | basename }}
+    tags: Copy_config_file
+    become: true
+    copy:
+      src: "/etc/kubernetes/admin.conf"
+      dest: "{{ ansible_user_dir }}/.kube/config"
+      remote_src: yes
+      force: no
+      owner: "{{ ansible_user_id }}"
+      group: "{{ ansible_user_id }}"
+
+- name: Display_kubeadm_init_output | {{ role_name | basename }}
+  tags: Display_kubeadm_init_output
+  when:
+    - "'k8s_master_nodes' in groups.keys()"
+    - "groups['k8s_master_nodes'] != []"
+  pause:
+    seconds: 1
+    prompt: |
+
+      //////////////////////////////////////////////////////////////////////////////////////////////////
+
+        # This was the output from the "kubeadm init" command:
+
+        {{ hostvars[groups['k8s_master_nodes'][0]]['kubeadm_init_output']['stdout'] }}
+
+      //////////////////////////////////////////////////////////////////////////////////////////////////

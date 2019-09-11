@@ -1,0 +1,6 @@
+apiVersion: kubeadm.k8s.io/v1beta2
+kind: ClusterConfiguration
+kubernetesVersion: stable
+controlPlaneEndpoint: "{{ k8s_apiservers_loadbalancers_virtual_ip }}:{{ k8s_apiservers_loadbalancers_port }}"
+networking:
+  podSubnet: "{{ k8s_pod_network_cidr }}"

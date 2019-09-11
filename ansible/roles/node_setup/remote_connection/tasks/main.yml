@@ -1,0 +1,21 @@
+---
+- when: "'local_nodes' not in group_names"
+  block:
+  - name: Copy_ssh_public_key_to_remote | {{ role_name | basename }}
+    tags: Copy_ssh_public_key_to_remote
+    authorized_key:
+      user: "{{ ansible_user_id }}"
+      key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_ed25519.pub') }}"
+      state: present
+    register: ssh_pub_key_added
+
+  - name: Disable_ssh_password_login_for_better_security | {{ role_name | basename }}
+    tags: Disable_ssh_password_login_for_better_security
+    when: ssh_pub_key_added is succeeded
+    become: true
+    replace:
+      path: /etc/ssh/sshd_config
+      regexp: '^#?\s*PasswordAuthentication yes'
+      replace: 'PasswordAuthentication no'
+      backup: true
+    notify: Restart_ssh | remote_connection

@@ -1,0 +1,53 @@
+---
+# https://docs.docker.com/engine/installation/linux/docker-ce/ubuntu/#install-from-a-package
+- name: Check_if_docker_is_installed | {{ role_name | basename }}
+  tags: Check_if_docker_is_installed
+  when: "'docker_nodes' in group_names"
+  command: docker --version
+  register: docker_installed_check
+  ignore_errors: yes
+  changed_when: false
+
+- when:
+  - "'docker_nodes' in group_names"
+  - docker_installed_check is failed
+  become: true
+  block:
+  - name: Install_docker_from_deb | {{ role_name | basename }}
+    tags: Install_docker_from_deb
+    apt:
+      deb: "{{ item }}"
+      update_cache: false
+      state: present
+    loop:
+      - "{{ docker_package_urls['containerd'] }}"
+      - "{{ docker_package_urls['docker-cli'] }}"
+      - "{{ docker_package_urls['docker'] }}"
+
+  - name: Configure_docker_daemon | {{ role_name | basename }}
+    tags: Configure_docker_daemon
+    template:
+      src: templates/docker_daemon.json.j2
+      dest: /etc/docker/daemon.json
+      mode: '0600'
+
+  - name: Create_systemd_docker_directory | {{ role_name | basename }}
+    tags: Create_systemd_docker_directory
+    file:
+      path: "/etc/systemd/system/docker.service.d"
+      state: directory
+
+  - name: Add_current_user_to_docker_group | {{ role_name | basename }}
+    tags: Add_current_user_to_docker_group
+    user:
+      name: "{{ ansible_user_id }}"
+      groups: docker
+      append: true
+
+  - name: Restart_docker_and_enable_on_boot | {{ role_name | basename }}
+    tags: Restart_docker_and_enable_on_boot
+    systemd:
+      name: docker
+      enabled: true
+      state: restarted
+      daemon_reload: true

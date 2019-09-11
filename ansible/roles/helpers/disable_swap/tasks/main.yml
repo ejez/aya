@@ -1,0 +1,24 @@
+---
+- become: true
+  block:
+  - name: Remove_swap_from_fstab | {{ role_name | basename }}
+    tags: Remove_swap_from_fstab
+    mount:
+      name: "{{ item }}"
+      fstype: swap
+      state: absent
+      backup: true
+    loop:
+      - swap
+      - none
+
+  - name: Check_swap | {{ role_name | basename }}
+    tags: Check_swap
+    command: /sbin/swapon -s
+    register: swapon
+    changed_when: false
+
+  - name: Disable_swap | {{ role_name | basename }}
+    tags: Disable_swap
+    when: swapon.stdout != ""
+    command: /sbin/swapoff -a

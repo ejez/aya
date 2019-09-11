@@ -1,0 +1,12 @@
+---
+#ansible-playbook playbooks/1_node_setup/misc.yml -i inventories/sandbox_nodes.ini
+#ansible-playbook playbooks/1_node_setup/misc.yml --ask-become-pass -i inventories/example_nodes.ini
+
+- name: Misc_setup
+  tags: Misc_setup
+  hosts: all
+  vars:
+    host_entries_file: "{{ lookup('first_found', 'custom/misc/' + inventory + '_host_entries', errors='ignore') }}"
+  tasks:
+  - import_role:
+      name: ../../roles/node_setup/misc

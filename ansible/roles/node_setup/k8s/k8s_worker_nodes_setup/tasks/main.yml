@@ -1,0 +1,36 @@
+---
+- name: Get_node_join_command | {{ role_name | basename }}
+  tags: Get_node_join_command
+  when:
+  - "'k8s_master_nodes' in group_names"
+  - inventory_hostname == groups['k8s_master_nodes'][0]
+  - "'microk8s_nodes' not in group_names"
+  command: kubeadm token create --print-join-command
+  register: k8s_cluster_nodes_join_command
+
+- name: Join_k8s_cluster_as_worker | {{ role_name | basename }}
+  tags: Join_k8s_cluster_as_worker
+  when:
+  - "'k8s_worker_nodes' in group_names"
+  - "'k8s_master_nodes' not in group_names"
+  - "'k8s_master_nodes' in groups.keys()"
+  become: true
+  command: "{{ hostvars[groups['k8s_master_nodes'][0]]['k8s_cluster_nodes_join_command'].stdout }}"
+  ignore_errors: true
+
+- name: Add_relevant_ansible_inventory_groups_as_labels_to_node | {{ role_name | basename }}
+  tags: Add_relevant_ansible_inventory_groups_as_labels_to_node
+  when:
+  - "'k8s_worker_nodes' in group_names"
+  - "'k8s_master_nodes' in groups.keys()"
+  delegate_to: "{{ groups['k8s_master_nodes'][0] }}"
+  loop: "{{ group_names }}"
+  command: kubectl label nodes {{ hostvars[inventory_hostname]['ansible_hostname'] }} aya/{{ item | regex_replace('^(.+)_nodes$', '\1_node') }}="true" --overwrite
+
+- name: Remove_master_taint_from_all_worker_nodes | {{ role_name | basename }}
+  tags: Remove_master_taint_from_all_worker_nodes
+  when:
+  - "'k8s_master_nodes' in group_names"
+  - inventory_hostname == groups['k8s_master_nodes'][0]
+  command: kubectl taint nodes -l aya/k8s_worker_node=true node-role.kubernetes.io/master-
+  ignore_errors: true

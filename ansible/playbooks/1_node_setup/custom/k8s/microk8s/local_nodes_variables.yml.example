@@ -1,0 +1,6 @@
+---
+# OPTIONAL
+
+# https://microk8s.io/docs/release-channels
+# https://github.com/kubernetes/kubernetes/releases
+microk8s_channel: "1.15/stable"

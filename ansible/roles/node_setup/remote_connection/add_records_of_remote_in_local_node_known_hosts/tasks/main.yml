@@ -1,0 +1,20 @@
+---
+- when: "'local_nodes' not in group_names"
+  delegate_to: localhost
+  block:
+  - name: Get_remote_host_entries | {{ role_name | basename }}
+    tags: Get_remote_host_entries
+    command: getent hosts {{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}
+    register: remote_host_entries
+
+  - name: Add_remote_name_to_local_node_known_hosts | {{ role_name | basename }}
+    tags: Add_remote_name_to_local_node_known_hosts
+    known_hosts:
+      name: "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+      key: "{{ lookup('pipe', 'ssh-keyscan -p {{ ansible_port | default(22) }} -T 20 -H -t ed25519 {{ hostvars[inventory_hostname].ansible_host | default(inventory_hostname) }}') }}"
+
+  - name: Add_remote_ip_to_local_node_known_hosts | {{ role_name | basename }}
+    tags: Add_remote_ip_to_local_node_known_hosts
+    known_hosts:
+      name: "{{ remote_host_entries.stdout.split(' ')[0] }}"
+      key: "{{ lookup('pipe', 'ssh-keyscan -p {{ ansible_port | default(22) }} -T 20 -H -t ed25519 {{ remote_host_entries.stdout.split(' ')[0] }}') }}"

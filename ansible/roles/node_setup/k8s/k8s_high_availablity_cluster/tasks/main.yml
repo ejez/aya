@@ -1,0 +1,156 @@
+---
+- import_role:
+    name: "{{ role_path }}/../k8s_apiservers_loadbalancers"
+
+- when:
+  - "'k8s_master_nodes' in groups.keys()"
+  - groups['k8s_master_nodes']|length|int >= 2
+  - inventory_hostname == groups['k8s_master_nodes'][0]
+  block:
+  - name: Create_k8s_kubeadm_directory | {{ role_name | basename }}
+    tags: Create_k8s_kubeadm_directory
+    file:
+      path: "{{ ansible_user_dir }}/.aya/k8s/kubeadm"
+      state: directory
+
+  - name: Create_kubeadm_config | {{ role_name | basename }}
+    tags: Create_kubeadm_config
+    template:
+      src: templates/kubeadm-config.yaml.j2
+      dest: "{{ ansible_user_dir }}/.aya/k8s/kubeadm/kubeadm-config.yaml"
+
+  - name: Initialize_k8s_cluster | {{ role_name | basename }}
+    tags: Initialize_k8s_cluster
+    become: true
+    command: kubeadm init --config={{ ansible_user_dir }}/.aya/k8s/kubeadm/kubeadm-config.yaml
+    ignore_errors: true
+    register: kubeadm_init_output
+
+  - name: Create_kube_directory | {{ role_name | basename }}
+    tags: Create_kube_directory
+    file:
+      path: "{{ ansible_user_dir }}/.kube"
+      state: directory
+
+  - name: Copy_config_file | {{ role_name | basename }}
+    tags: Copy_config_file
+    become: true
+    copy:
+      src: "/etc/kubernetes/admin.conf"
+      dest: "{{ ansible_user_dir }}/.kube/config"
+      remote_src: yes
+      force: no
+      owner: "{{ ansible_user_id }}"
+      group: "{{ ansible_user_id }}"
+
+  - name: Get_localhost_user_directory | {{ role_name | basename }}
+    tags: Get_localhost_user_directory
+    delegate_to: localhost
+    set_fact:
+      localhost_user_dir: "{{ lookup('env', 'HOME') }}"
+
+  - name: Fetch_k8s_cluster_certs | {{ role_name | basename }}
+    tags: Fetch_k8s_cluster_certs
+    become: true
+    fetch:
+      src: "/etc/kubernetes/pki/{{ item }}"
+      dest: "{{ localhost_user_dir }}/.aya/k8s"
+    loop:
+      - "ca.crt"
+      - "ca.key"
+      - "sa.key"
+      - "sa.pub"
+      - "front-proxy-ca.crt"
+      - "front-proxy-ca.key"
+      - "etcd/ca.crt"
+      - "etcd/ca.key"
+
+  - name: Get_node_join_command | {{ role_name | basename }}
+    tags: Get_node_join_command
+    command: kubeadm token create --print-join-command
+    register: k8s_cluster_nodes_join_command
+
+- name: Display_kubeadm_init_output | {{ role_name | basename }}
+  tags: Display_kubeadm_init_output
+  when:
+    - "'k8s_master_nodes' in groups.keys()"
+    - "groups['k8s_master_nodes'] != []"
+  pause:
+    seconds: 1
+    prompt: |
+
+      //////////////////////////////////////////////////////////////////////////////////////////////////
+
+        # This was the output from the "kubeadm init" command:
+
+        {{ hostvars[groups['k8s_master_nodes'][0]]['kubeadm_init_output']['stdout'] }}
+
+      //////////////////////////////////////////////////////////////////////////////////////////////////
+
+- import_role:
+    name: ../../roles/node_setup/k8s/k8s_network_plugin
+
+- when:
+  - "'k8s_master_nodes' in groups.keys()"
+  - groups['k8s_master_nodes']|length|int >= 2
+  - "'k8s_master_nodes' in group_names"
+  - inventory_hostname != groups['k8s_master_nodes'][0]
+  block:
+  - name: Create_k8s_certs_directory | {{ role_name | basename }}
+    tags: Create_k8s_certs_directory
+    become: true
+    file:
+      path: "/etc/kubernetes/pki/etcd"
+      state: directory
+
+  - name: Copy_k8s_cluster_certs | {{ role_name | basename }}
+    tags: Copy_k8s_cluster_certs
+    become: true
+    copy:
+      src: "{{ ansible_user_dir }}/.aya/k8s/{{ groups['k8s_master_nodes'][0] }}/etc/kubernetes/pki/{{ item }}"
+      dest: "/etc/kubernetes/pki/{{ item }}"
+    loop:
+      - "ca.crt"
+      - "ca.key"
+      - "sa.key"
+      - "sa.pub"
+      - "front-proxy-ca.crt"
+      - "front-proxy-ca.key"
+      - "etcd/ca.crt"
+      - "etcd/ca.key"
+
+  - name: Change_permissions_for_k8s_cluster_certs | {{ role_name | basename }}
+    tags: Change_permissions_for_k8s_cluster_certs
+    become: true
+    file:
+      path: "/etc/kubernetes/pki/{{ item }}"
+      mode: 0600
+    loop:
+      - "ca.key"
+      - "sa.key"
+      - "sa.pub"
+      - "front-proxy-ca.key"
+      - "etcd/ca.key"
+
+  - name: Join_k8s_cluster_as_master | {{ role_name | basename }}
+    tags: Join_k8s_cluster_as_master
+    become: true
+    command: "{{ hostvars[groups['k8s_master_nodes'][0]]['k8s_cluster_nodes_join_command'].stdout }} --control-plane"
+    ignore_errors: true
+
+  - name: Create_kube_directory | {{ role_name | basename }}
+    tags: Create_kube_directory
+    file:
+      path: "{{ ansible_user_dir }}/.kube"
+      state: directory
+
+  - name: Copy_config_file | {{ role_name | basename }}
+    tags: Copy_config_file
+    become: true
+    copy:
+      src: "/etc/kubernetes/admin.conf"
+      dest: "{{ ansible_user_dir }}/.kube/config"
+      remote_src: yes
+      force: no
+      owner: "{{ ansible_user_id }}"
+      group: "{{ ansible_user_id }}"

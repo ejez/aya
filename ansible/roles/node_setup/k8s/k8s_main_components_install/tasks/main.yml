@@ -1,0 +1,55 @@
+---
+# https://kubernetes.io/docs/setup/independent/install-kubeadm/
+- name: Check_if_k8s_main_components_are_installed | {{ role_name | basename }}
+  tags: Check_if_k8s_main_components_are_installed
+  when: "'k8s_cluster_nodes' in group_names"
+  shell: kubectl version --short && kubelet --version && kubeadm version --output short
+  register: k8s_main_components_installed_check
+  ignore_errors: yes
+  changed_when: false
+
+- when:
+  - "'k8s_cluster_nodes' in group_names"
+  - k8s_main_components_installed_check is failed
+  block:
+  - import_role:
+      name: "{{ role_path }}/../../../helpers/disable_swap"
+
+  - name: Add_google_apt_key | {{ role_name | basename }}
+    tags: Add_google_apt_key
+    become: true
+    apt_key:
+      url: "https://packages.cloud.google.com/apt/doc/apt-key.gpg"
+      state: present
+
+  - name: Add_kubernetes_repo | {{ role_name | basename }}
+    tags: Add_kubernetes_repo
+    become: true
+    apt_repository:
+      repo: "deb https://apt.kubernetes.io/ kubernetes-xenial main"
+      state: present
+
+  - name: Install_kubernetes_from_repo | {{ role_name | basename }}
+    tags: Install_kubernetes_from_repo
+    become: true
+    apt:
+      name: "{{ item }}"
+      update_cache: true
+      state: present
+    loop:
+      - "kubelet={{ k8s_version }}*"
+      - "kubeadm={{ k8s_version }}*"
+      - "kubectl={{ k8s_version }}*"
+
+  - name: Hold_kubernetes_update | {{ role_name | basename }}
+    tags: Hold_kubernetes_update
+    become: true
+    command: apt-mark hold kubelet kubeadm kubectl
+
+  - name: Enable_kubectl_autocompletion | {{ role_name | basename }}
+    tags: Enable_kubectl_autocompletion
+    blockinfile:
+      path: "{{ ansible_user_dir }}/.profile"
+      block: |
+        source <(kubectl completion bash)
+      marker: "# {mark} kubectl autocompletion MANAGED BY ANSIBLE ROLE {{ role_name | basename }}"

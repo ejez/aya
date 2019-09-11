@@ -1,0 +1,6 @@
+---
+project: djangoexample
+deployment_env: play
+
+# if project was configured for production provide the domain:
+domain: example.net

@@ -1,0 +1,7 @@
+---
+# OPTIONAL
+
+# https://github.com/zalando/postgres-operator/releases
+postgres_operator_version: "v1.2.0"
+
+postgres_volume_size: "1Gi"

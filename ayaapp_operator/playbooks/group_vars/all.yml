@@ -1,0 +1,12 @@
+---
+# web apps directory
+apps_dir: "/apps"
+
+# python virtual directory
+pyvenvs_dir: "/opt/pyvenvs"
+
+# unix sockets directory
+sockets_dir: "/opt/sockets"
+
+# should be close to the k8s version of your cluster
+kubectl_version: "1.15.3"

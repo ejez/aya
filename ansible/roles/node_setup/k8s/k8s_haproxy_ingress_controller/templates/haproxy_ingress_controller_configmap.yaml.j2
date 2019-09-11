@@ -1,0 +1,8 @@
+# https://www.haproxy.com/documentation/hapee/1-9r1/traffic-management/kubernetes-ingress-controller/#configmap-resource
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: haproxy-configmap
+  namespace: default
+data:
+  ssl-redirect: "ON"

@@ -1,0 +1,29 @@
+---
+# https://appscode.com/products/voyager/10.0.0/setup/install/
+- when:
+  - "'voyager_pods_nodes' in groups.keys()"
+  - "groups['voyager_pods_nodes'] != []"
+  - "'k8s_master_nodes' in group_names"
+  - inventory_hostname == groups['k8s_master_nodes'][0]
+  block:
+  - name: Create_k8s_voyager_directory | {{ role_name | basename }}
+    tags: Create_k8s_voyager_directory
+    file:
+      path: "{{ ansible_user_dir }}/.aya/k8s/voyager"
+      state: directory
+
+  - name: Create_voyager_operator_config_file | {{ role_name | basename }}
+    tags: Create_voyager_operator_config_file
+    template:
+      src: "{{ voyager_operator_config_template | default('templates/voyager_operator_config.yaml.j2', true) }}"
+      dest: "{{ ansible_user_dir }}/.aya/k8s/voyager/voyager_operator_config.yaml"
+
+  - name: Add_appscode_helm_repo | {{ role_name | basename }}
+    tags: Add_appscode_helm_repo
+    command: helm repo add appscode https://charts.appscode.com/stable/
+
+  - name: Install_voyager | {{ role_name | basename }}
+    tags: Install_voyager
+    shell: "helm install appscode/voyager --name voyager-operator --namespace kube-system
+              --values {{ ansible_user_dir }}/.aya/k8s/voyager/voyager_operator_config.yaml"
+    ignore_errors: true

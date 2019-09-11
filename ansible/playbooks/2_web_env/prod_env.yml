@@ -1,0 +1,14 @@
+---
+#ansible-playbook playbooks/2_web_env/prod_env.yml -i inventories/sandbox_nodes.ini
+#ansible-playbook playbooks/2_web_env/prod_env.yml -i inventories/example_nodes.ini
+
+- name: Setup_environment_for_production
+  tags: Setup_environment_for_production
+  hosts: k8s_master_nodes[0]
+  vars:
+    variables_file: "{{lookup('first_found', 'custom/prod_env/' + inventory + '_variables.yml', errors='ignore')}}"
+  tasks:
+  - when: variables_file is file
+    include_vars: "{{ variables_file }}"
+  - import_role:
+      name: ../../roles/web_env/prod_env

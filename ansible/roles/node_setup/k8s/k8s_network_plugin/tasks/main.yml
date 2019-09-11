@@ -1,0 +1,27 @@
+---
+- when:
+    - "'k8s_master_nodes' in group_names"
+    - inventory_hostname == groups['k8s_master_nodes'][0]
+  block:
+  - name: Create_k8s_network_directory | {{ role_name | basename }}
+    tags: Create_k8s_network_directory
+    file:
+      path: "{{ ansible_user_dir }}/.aya/k8s/network"
+      state: directory
+
+  - name: Get_calico_yaml_file | {{ role_name | basename }}
+    tags: Get_calico_yaml_file
+    get_url:
+      url: "{{ calico_yaml_file_url }}"
+      dest: "{{ ansible_user_dir }}/.aya/k8s/network/calico.yaml"
+
+  - name: Change_pod_network_cidr_in_calico_yaml_file | {{ role_name | basename }}
+    tags: Change_pod_network_cidr_in_calico_yaml_file
+    replace:
+      path: "{{ ansible_user_dir }}/.aya/k8s/network/calico.yaml"
+      regexp: '192.168.0.0/16'
+      replace: "{{ k8s_pod_network_cidr }}"
+
+  - name: Install_calico | {{ role_name | basename }}
+    tags: Install_calico
+    command: kubectl apply -f {{ ansible_user_dir }}/.aya/k8s/network/calico.yaml

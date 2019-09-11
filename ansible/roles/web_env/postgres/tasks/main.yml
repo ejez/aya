@@ -1,0 +1,81 @@
+---
+# https://postgres-operator.readthedocs.io/en/latest/quickstart/#helm-chart
+- when:
+    - "'postgres_pods_nodes' in groups.keys()"
+    - "groups['postgres_pods_nodes'] != []"
+    - "'k8s_master_nodes' in group_names"
+    - inventory_hostname == groups['k8s_master_nodes'][0]
+  block:
+  - name: Create_k8s_postgres_directory | {{ role_name | basename }}
+    tags: Create_k8s_postgres_directory
+    file:
+      path: "{{ ansible_user_dir }}/.aya/postgres"
+      state: directory
+
+  - name: Clone_postgres_operator_repo | {{ role_name | basename }}
+    tags: Clone_postgres_operator_repo
+    git:
+      repo: https://github.com/zalando/postgres-operator.git
+      dest: "{{ ansible_user_dir }}/.aya/postgres/postgres-operator"
+      version: "{{ postgres_operator_version }}"
+
+  - name: Create_postgres_pod_config_file | {{ role_name | basename }}
+    tags: Create_postgres_pod_config_file
+    template:
+      src: "{{ postgres_pod_config_template | default('templates/postgres_pod_config.yaml.j2', true) }}"
+      dest: "{{ ansible_user_dir }}/.aya/postgres/postgres_pod_config.yaml"
+
+  - name: Create_postgres_pod_configmap | {{ role_name | basename }}
+    tags: Create_postgres_pod_configmap
+    command: kubectl apply -f {{ ansible_user_dir }}/.aya/postgres/postgres_pod_config.yaml
+
+  - name: Create_postgres_operator_config_file | {{ role_name | basename }}
+    tags: Create_postgres_operator_config_file
+    template:
+      src: "{{ postgres_operator_config_template | default('templates/postgres_operator_config.yaml.j2', true) }}"
+      dest: "{{ ansible_user_dir }}/.aya/postgres/postgres_operator_config.yaml"
+
+  - name: Install_postgres_operator | {{ role_name | basename }}
+    tags: Install_postgres_operator
+    command: helm install --name postgres-operator {{ ansible_user_dir }}/.aya/postgres/postgres-operator/charts/postgres-operator --values {{ ansible_user_dir }}/.aya/postgres/postgres_operator_config.yaml
+    ignore_errors: true
+
+  - name: Wait_for_postgres_operator_to_be_ready | {{ role_name | basename }}
+    tags: Wait_for_postgres_operator_to_be_ready
+    shell: "
+      sleep 10;
+      kubectl rollout status deployment/postgres-operator"
+
+  - name: Create_postgres_cluster_manifest_file | {{ role_name | basename }}
+    tags: Create_postgres_cluster_manifest_file
+    template:
+      src: "{{ postgres_cluster_manifest_template | default('templates/postgres_cluster_manifest.yaml.j2', true) }}"
+      dest: "{{ ansible_user_dir }}/.aya/postgres/postgres_cluster_manifest.yaml"
+
+  - name: Deploy_postgres_cluster | {{ role_name | basename }}
+    tags: Deploy_postgres_cluster
+    command: kubectl apply -f {{ ansible_user_dir }}/.aya/postgres/postgres_cluster_manifest.yaml
+
+- name: Display_useful_postgres_cluster_commands | {{ role_name | basename }}
+  tags: Display_useful_postgres_cluster_commands
+  when:
+    - "'postgres_pods_nodes' in groups.keys()"
+    - "groups['postgres_pods_nodes'] != []"
+    - "'k8s_master_nodes' in groups.keys()"
+    - "groups['k8s_master_nodes'] != []"
+  pause:
+    seconds: 1
+    prompt: |
+
+      //////////////////////////////////////////////////////////////////////////////////////////////////
+
+        # Useful commmands:
+
+        # check the deployed cluster
+        kubectl get postgresql
+        # check created database pods
+        kubectl get pods -l application=spilo -L spilo-role
+        # check created service resources
+        kubectl get svc -l application=spilo -L spilo-role
+
+      //////////////////////////////////////////////////////////////////////////////////////////////////

@@ -1,0 +1,24 @@
+data:
+  {{ domain }}.conf: |
+    server {
+      listen 80;
+      server_name {{ domain }} www.{{ domain }};
+
+      # for let's encrypt challenge
+      location /.well-known/ {
+        alias {{ apps_dir }}/.well-known/;
+      }
+
+      location /media  {
+        alias {{ project_dir }}/media;
+      }
+
+      location /static {
+        alias {{ project_dir }}/static;
+      }
+
+      location / {
+        uwsgi_pass {{ deployment_env }}_{{ project }};
+        include /etc/nginx/uwsgi_params;
+      }
+    }

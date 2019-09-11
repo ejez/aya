@@ -1,0 +1,24 @@
+---
+#ansible-playbook playbooks/1_node_setup/remote_connection.yml --ask-become-pass -i inventories/example_nodes.ini
+
+- name: Add_records_of_remote_node_in_local_node_known_hosts
+  tags: Add_records_of_remote_node_in_local_node_known_hosts
+  hosts: all
+  serial: 1
+  vars:
+    # Before a python virtual env is installed for ansible we use the global python
+    ansible_python_interpreter: /usr/bin/python3
+  gather_facts: false
+  tasks:
+  - import_role:
+      name: ../../roles/node_setup/remote_connection/add_records_of_remote_in_local_node_known_hosts
+
+- name: Setup_remote_node_connection
+  tags: Setup_remote_node_connection
+  hosts: all
+  vars:
+    # Before a python virtualenv is installed for ansible we use the global python
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+  - import_role:
+      name: ../../roles/node_setup/remote_connection

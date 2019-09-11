@@ -1,0 +1,14 @@
+---
+#ansible-playbook playbooks/2_web_env/python.yml -i inventories/sandbox_nodes.ini
+#ansible-playbook playbooks/2_web_env/python.yml -i inventories/example_nodes.ini
+
+- name: Setup_environment_for_python_apps
+  tags: Setup_environment_for_python_apps
+  hosts: uwsgi_nginx_pods_nodes, k8s_master_nodes[0]
+  vars:
+    variables_file: "{{lookup('first_found', 'custom/python/' + inventory + '_variables.yml', errors='ignore')}}"
+  tasks:
+  - when: variables_file is file
+    include_vars: "{{ variables_file }}"
+  - import_role:
+      name: ../../roles/web_env/python

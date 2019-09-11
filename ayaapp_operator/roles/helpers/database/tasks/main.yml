@@ -1,0 +1,48 @@
+---
+- name: Check_if_project_is_already_installed
+  tags: Check_if_project_is_already_installed
+  shell: kubectl exec $(kubectl get pods -l app=aya-python --no-headers -o custom-columns=":metadata.name" | tail -n 1) -c uwsgi -- bash -c "test -f {{ apps_dir }}/{{ deployment_env }}/{{ project }}/manage.py"
+  ignore_errors: true
+  register: project_is_installed_check
+  changed_when: false
+
+- when: project_is_installed_check.rc == 1
+  block:
+  - name: Get_db_user_password_secrets | {{ role_name | basename }}
+    tags: Get_db_user_password_secrets
+    k8s_facts:
+      api_version: v1
+      kind: Secret
+      name: "aya-python-project-db-user-passwords"
+      namespace: default
+    register: db_user_password_secrets
+
+  - when: (db_user_password_secrets.resources[0].data is not defined) or (db_user_password_secrets.resources[0].data[db_user] is not defined)
+    block:
+    - name: Generate_db_user_password | {{ role_name | basename }}
+      tags: Generate_db_user_password
+      shell: tr -cd '[:alnum:]' < /dev/urandom | fold -w $((20 + RANDOM % 10)) | head -n1
+      register: db_user_password
+
+    - name: Create_db_user_password_secret_entry | {{ role_name | basename }}
+      tags: Create_db_user_password_secret_entry
+      command: |
+        kubectl patch secret aya-python-project-db-user-passwords --patch '{"data":{"{{ db_user }}": "{{ db_user_password.stdout | b64encode }}"}}'
+
+  - name: Create_db_user | {{ role_name | basename }}
+    tags: Create_db_user
+    postgresql_user:
+      name: "{{ db_user }}"
+      password: "{{ (db_user_password_secrets.resources[0].data[db_user] | b64decode) if ((db_user_password_secrets.resources[0].data is defined) and (db_user_password_secrets.resources[0].data[db_user] is defined)) else db_user_password.stdout }}"
+      login_host: aya-postgres-cluster.default
+      login_user: postgres
+      login_password: "{{ lookup('env','PGPASSWORD') }}"
+
+  - name: Create_db | {{ role_name | basename }}
+    tags: Create_db
+    postgresql_db:
+      name: "{{ db }}"
+      owner: "{{ db_user }}"
+      login_host: aya-postgres-cluster.default
+      login_user: postgres
+      login_password: "{{ lookup('env','PGPASSWORD') }}"

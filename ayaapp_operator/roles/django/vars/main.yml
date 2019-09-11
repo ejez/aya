@@ -1,0 +1,4 @@
+---
+project_dir: "{{ apps_dir }}/{{ deployment_env }}/{{ project }}"
+db: "{{ deployment_env }}_{{ project }}"
+db_user: "{{ db }}"

@@ -1,0 +1,16 @@
+# General settings (common between all environments):
+from .base import *
+
+# {{ deployment_env }} environment specific settings:
+with open('/etc/aya/secrets/python/project_secret_keys/{{ deployment_env }}_{{ project }}') as f:
+  SECRET_KEY = f.read().strip()
+with open('/etc/aya/secrets/python/project_db_user_passwords/{{ deployment_env }}_{{ project }}') as f:
+  DATABASES['default']['PASSWORD'] = f.read().strip()
+
+DATABASES['default']['NAME'] = '{{ db }}'
+DATABASES['default']['USER'] = '{{ db_user }}'
+
+DEBUG = True
+ALLOWED_HOSTS = ['*']
+
+# More settings overrides for {{ deployment_env }} environment:

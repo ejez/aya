@@ -1,0 +1,89 @@
+---
+- name: Added_settings | {{ role_name | basename }}
+  tags: Added_settings
+  blockinfile:
+    path: "{{ project_dir }}/{{ project }}/settings.py"
+    block: |
+      STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+      DATABASES = {
+          'default': {
+              'ENGINE': 'django.db.backends.postgresql',
+              'HOST': 'aya-postgres-cluster.default',
+              'PORT': '5432',
+          }
+      }
+    marker: "# {mark} PROJECT SETTINGS ADDED BY ANSIBLE ROLE {{ role_name | basename }}"
+
+- name: Read_settings_file | {{ role_name | basename }}
+  tags: Read_settings_file
+  slurp:
+    src: "{{ project_dir }}/{{ project }}/settings.py"
+  register: django_original_settings
+
+- name: Create_settings_directory | {{ role_name | basename }}
+  tags: Create_settings_directory
+  file:
+    path: "{{ project_dir }}/{{ project }}/settings"
+    state: directory
+
+- name: Create_init_file | {{ role_name | basename }}
+  tags: Create_init_file
+  copy:
+    content: ""
+    dest: "{{ project_dir }}/{{ project }}/settings/__init__.py"
+    force: false
+
+- name: Create_base_settings_file | {{ role_name | basename }}
+  tags: Create_base_settings_file
+  copy:
+    src: "{{ project_dir }}/{{ project }}/settings.py"
+    dest: "{{ project_dir }}/{{ project }}/settings/base.py"
+    remote_src: yes
+    force: false
+
+- name: Delete_initial_settings_file | {{ role_name | basename }}
+  tags: Delete_initial_settings_file
+  file:
+    path: "{{ project_dir }}/{{ project }}/settings.py"
+    state: absent
+
+- name: Remove_sensitive_and_env_related_info_from_base_settings_file | {{ role_name | basename }}
+  tags: Remove_sensitive_and_env_related_info_from_base_settings_file
+  lineinfile:
+    path: "{{ project_dir }}/{{ project }}/settings/base.py"
+    regexp: "^\\s*{{ item }}"
+    state: absent
+  loop:
+    - "SECRET_KEY = "
+
+- name: Project_settings_paths_adjustment | {{ role_name | basename }}
+  tags: Project_settings_paths_adjustment
+  replace:
+    path: "{{ project_dir }}/{{ project }}/settings/base.py"
+    regexp: "{{ item | regex_escape() }}"
+    replace: "os.path.dirname({{ item }})"
+  loop:
+    - 'os.path.abspath(__file__)'
+
+- name: Create_environment_specific_settings_file | {{ role_name | basename }}
+  tags: Create_environment_specific_settings_file
+  template:
+    src: "../../../helpers/project_settings_templates/{{ deployment_env }}.py.j2"
+    dest: "{{ project_dir }}/{{ project }}/settings/{{ deployment_env }}.py"
+
+- name: Create_local_settings_file | {{ role_name | basename }}
+  tags: Create_local_settings_file
+  template:
+    src: "../../../helpers/project_settings_templates/local.py.j2"
+    dest: "{{ project_dir }}/{{ project }}/settings/local.py"
+
+- name: Set_django_settings_module | {{ role_name | basename }}
+  tags: Set_django_settings_module
+  replace:
+    path: "{{ project_dir }}/{{ item }}"
+    regexp: "^(\\s*)os\\.environ\\.setdefault(.+)DJANGO_SETTINGS_MODULE(.+){{ project }}\\.settings([\"']\\))$"
+    replace: '\1os.environ.setdefault\2DJANGO_SETTINGS_MODULE\3{{ project }}.settings.local\4'
+  loop:
+    - manage.py
+    - "{{ project }}/wsgi.py"

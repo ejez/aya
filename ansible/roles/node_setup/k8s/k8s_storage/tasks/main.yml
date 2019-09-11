@@ -1,0 +1,39 @@
+---
+- when:
+  - "'k8s_master_nodes' in group_names"
+  - inventory_hostname == groups['k8s_master_nodes'][0]
+  block:
+  - name: Create_k8s_local_storage_directory | {{ role_name | basename }}
+    tags: Create_k8s_local_storage_directory
+    file:
+      path: "{{ ansible_user_dir }}/.aya/k8s/local_storage"
+      state: directory
+
+  - name: Create_k8s_local_storage_class_file | {{ role_name | basename }}
+    tags: Create_k8s_local_storage_class_file
+    copy:
+      content: |
+        apiVersion: storage.k8s.io/v1
+        kind: StorageClass
+        metadata:
+          name: local-storage
+        provisioner: kubernetes.io/no-provisioner
+        volumeBindingMode: WaitForFirstConsumer
+      dest: "{{ ansible_user_dir }}/.aya/k8s/local_storage/storageclass.yaml"
+
+  - name: Create_k8s_local_storageclass | {{ role_name | basename }}
+    tags: Create_k8s_local_storageclass
+    command: kubectl apply -f {{ ansible_user_dir }}/.aya/k8s/local_storage/storageclass.yaml
+
+  - name: Get_k8s_storage_classes | {{ role_name | basename }}
+    tags: Get_k8s_storage_classes
+    command: kubectl get storageclasses --no-headers -o custom-columns=":metadata.name"
+    register: storage_classes
+
+  - name: Remove_default_storage_class_annotation | {{ role_name | basename }}
+    tags: Remove_default_storage_class_annotation
+    command: kubectl annotate storageclasses --all storageclass.kubernetes.io/is-default-class-
+
+  - name: Set_k8s_default_storage_class | {{ role_name | basename }}
+    tags: Set_k8s_default_storage_class
+    command: kubectl annotate --overwrite storageclass {{ k8s_default_storage_class | default('glusterfs-storage' if 'glusterfs-storage' in storage_classes.stdout_lines else 'microk8s-hostpath' if 'microk8s-hostpath' in storage_classes.stdout_lines else 'local-storage') }} storageclass.kubernetes.io/is-default-class="true"

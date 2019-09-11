@@ -1,0 +1,5 @@
+---
+#ansible-playbook playbooks/1_node_setup/1_local_node_setup.yml --ask-become-pass -i inventories/local_nodes.ini
+
+- import_playbook: node_setup.yml
+- import_playbook: local_node.yml

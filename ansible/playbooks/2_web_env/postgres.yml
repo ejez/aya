@@ -1,0 +1,17 @@
+---
+#ansible-playbook playbooks/2_web_env/postgres.yml -i inventories/sandbox_nodes.ini
+#ansible-playbook playbooks/2_web_env/postgres.yml -i inventories/example_nodes.ini
+
+- name: Setup_postgres
+  tags: Setup_postgres
+  hosts: k8s_master_nodes[0]
+  vars:
+    variables_file: "{{lookup('first_found', 'custom/postgres/' + inventory + '_variables.yml', errors='ignore')}}"
+    postgres_cluster_manifest_template: "{{ lookup('first_found', 'custom/postgres/' + inventory + '_postgres_cluster_manifest.yaml.j2', errors='ignore') }}"
+    postgres_operator_config_template: "{{ lookup('first_found', 'custom/postgres/' + inventory + '_postgres_operator_config.yaml.j2', errors='ignore') }}"
+    postgres_pod_config_template: "{{ lookup('first_found', 'custom/postgres/' + inventory + '_postgres_pod_config.yaml.j2', errors='ignore') }}"
+  tasks:
+  - when: variables_file is file
+    include_vars: "{{ variables_file }}"
+  - import_role:
+      name: ../../roles/web_env/postgres

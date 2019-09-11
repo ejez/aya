@@ -1,0 +1,14 @@
+- name: Create_project_removal_daemonset
+  tags: Create_project_removal_daemonset
+  hosts: localhost
+  gather_facts: false
+  tasks:
+  - import_role:
+      name: "helpers/project_removal_daemonset"
+
+- name: Remove_django_project
+  tags: Remove_django_project
+  hosts: all
+  tasks:
+  - import_role:
+      name: "remove_project"
