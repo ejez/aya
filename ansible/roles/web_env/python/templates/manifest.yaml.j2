@@ -101,7 +101,6 @@ spec:
         command: ["bash"]
         args: ["-c", "source {{ pyvenvs_dir }}/uwsgi/bin/activate && uwsgi --emperor /etc/uwsgi/vassals"]
         securityContext:
-          runAsUser: {{ ansible_user_uid }}
           runAsGroup: 101
         volumeMounts:
         - name: aya-python-uwsgi
