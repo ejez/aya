@@ -61,6 +61,12 @@ Quick start
   and modify this inventory as needed.
   https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html
 
+  If you don't have dedicated/cloud nodes you can use your local node
+  (your laptop for example) to set up a dev web environment with microk8s.
+
+  You can also use the provided ``aya/vagrant/Vagrantfile`` to create virtual
+  machines in your local computer.
+
 - Go to the ``custom`` directories inside the ``playbooks`` directory and check
   the provided example files, if ``OPTIONAL`` is not stated at the top of the
   file, you need to create one for your inventory and modify as needed, ex::
