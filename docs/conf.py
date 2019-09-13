@@ -54,4 +54,9 @@ html_theme = 'alabaster'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+# custom
 master_doc = 'index'
+
+import sphinx_rtd_theme
+extensions += ['sphinx_rtd_theme',]
+html_theme = "sphinx_rtd_theme"
