@@ -25,7 +25,7 @@ wagtail_version: "2.6.1"
 
 # Note: project python version should match uwsgi python version
 # https://docs.djangoproject.com/en/2.2/releases/2.2/#python-compatibility
-project_python_version: "3.7"
+project_python_version: "3.6"
 
 # extra python packages to install in project virtual env
 extra_python_packages: ""

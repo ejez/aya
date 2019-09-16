@@ -5,4 +5,4 @@
 apps_vol_size: "1Gi"
 
 # Note: uwsgi python version should match python projects python version
-uwsgi_python_version: "3.7"
+uwsgi_python_version: "3.6"
